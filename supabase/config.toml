@@ -1,0 +1,9 @@
+# Minimal local config for `supabase start` / `supabase db push`.
+# Run `supabase init` if you want the full generated file; this is enough to link.
+project_id = "triple-jeopardy"
+
+[db]
+major_version = 15
+
+[functions.connect-bluesky]
+verify_jwt = false

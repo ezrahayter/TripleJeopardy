@@ -1,0 +1,56 @@
+/* Positive Force FL - design tokens.
+   Bone ground, printer's-ink Charcoal. Single committed theme (no dark mode).
+   Mirrors Section 11 of the scope doc. */
+
+:root {
+  --ink: #373831; /* Charcoal - body, headlines */
+  --olive: #636b2f; /* small text, captions, metadata */
+  --sage: #a9ae80; /* lighter olive for fills - APPROXIMATE, confirm hex */
+  --coral: #e77451; /* the moment of action - used sparingly */
+  --bone: #f0ede8; /* the ground - not white */
+  --brick: #ac4a2a; /* links, attention */
+
+  --surface: #f6f3ee;
+  --surface-sunk: #e6e2d9;
+  --rule: #d7d2c5;
+  --rule-strong: #bdb7a6;
+
+  --font-sans: 'Chivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Chivo Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --measure: 68ch;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bone);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--brick);
+  font-weight: 500;
+  text-underline-offset: 2px;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brick);
+  outline-offset: 2px;
+}

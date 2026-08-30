@@ -1,0 +1,13 @@
+{
+  "name": "@tj/shared",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "~5.7.2"
+  }
+}

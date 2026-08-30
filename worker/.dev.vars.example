@@ -1,0 +1,5 @@
+# Copy to worker/.dev.vars for `wrangler dev`. Never commit .dev.vars.
+SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+TJ_ENCRYPTION_KEY="base64-32-byte-key-same-as-the-edge-function"
+WORKER_TRIGGER_SECRET="something-random-for-local-manual-triggers"

@@ -1,0 +1,207 @@
+@import './styles/tokens.css';
+
+.shell {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 20px 80px;
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 22px 0 18px;
+  border-bottom: 2px solid var(--ink);
+  flex-wrap: wrap;
+}
+.wordmark {
+  font-weight: 900;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+.wordmark .firm {
+  color: var(--olive);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  display: block;
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+.nav {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.nav a {
+  padding: 6px 10px;
+  text-decoration: none;
+  color: var(--olive);
+  border: 1px solid transparent;
+}
+.nav a.active {
+  color: var(--brick);
+  border-color: var(--rule-strong);
+}
+.nav button {
+  background: none;
+  border: 1px solid var(--rule-strong);
+  color: var(--olive);
+  padding: 6px 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 12px;
+}
+
+h1 {
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  font-size: 1.9rem;
+  margin: 28px 0 4px;
+}
+h2 {
+  font-weight: 700;
+  font-size: 1.2rem;
+  margin: 24px 0 8px;
+}
+.sub {
+  color: var(--olive);
+  margin: 0 0 20px;
+  max-width: var(--measure);
+}
+
+label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--olive);
+  margin: 16px 0 6px;
+}
+
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='datetime-local'],
+textarea,
+select {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: 0;
+}
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--ink);
+  color: var(--bone);
+  border: 1px solid var(--ink);
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.btn.secondary {
+  background: transparent;
+  color: var(--ink);
+}
+.btn.danger {
+  background: transparent;
+  color: var(--brick);
+  border-color: var(--brick);
+}
+.btnrow {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 16px;
+  margin: 10px 0;
+}
+.card .meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--olive);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 8px;
+}
+.card .body {
+  white-space: pre-wrap;
+  margin: 6px 0 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border: 1px solid var(--rule-strong);
+}
+.chip .dot {
+  width: 6px;
+  height: 6px;
+}
+.chip[data-status='draft'] .dot {
+  background: var(--olive);
+}
+.chip[data-status='scheduled'] .dot,
+.chip[data-status='publishing'] .dot {
+  background: var(--coral);
+}
+.chip[data-status='failed'] .dot {
+  background: var(--brick);
+}
+.chip[data-status='published'] {
+  background: var(--ink);
+  color: var(--bone);
+  border-color: var(--ink);
+}
+.chip[data-status='published'] .dot {
+  display: none;
+}
+
+.notice {
+  border-left: 3px solid var(--brick);
+  background: color-mix(in srgb, var(--ink) 4%, var(--bone));
+  padding: 12px 14px;
+  margin: 14px 0;
+  font-size: 0.95rem;
+}
+.error {
+  border-left-color: var(--brick);
+  color: var(--brick);
+}
+
+.muted {
+  color: var(--olive);
+}
+.center {
+  max-width: 400px;
+  margin: 80px auto;
+}

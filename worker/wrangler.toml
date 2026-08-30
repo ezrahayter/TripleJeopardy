@@ -1,0 +1,16 @@
+name = "triple-jeopardy-publisher"
+main = "src/index.ts"
+compatibility_date = "2024-11-11"
+compatibility_flags = ["nodejs_compat"]
+
+# Fire every minute. The claim query is cheap and idempotent, so an empty
+# run costs almost nothing.
+[triggers]
+crons = ["* * * * *"]
+
+# Secrets (set with `wrangler secret put <NAME>`), not vars:
+#   SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+#   TJ_ENCRYPTION_KEY
+#   WORKER_TRIGGER_SECRET   (optional - guards the manual POST /run endpoint)
+# For local dev these come from worker/.dev.vars instead.
