@@ -1,5 +1,9 @@
 # Copy to worker/.dev.vars for `wrangler dev`. Never commit .dev.vars.
 SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
-SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
-TJ_ENCRYPTION_KEY="base64-32-byte-key-same-as-the-edge-function"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-or-sb_secret-key"
+TJ_ENCRYPTION_KEY="base64-32-byte-key-same-as-the-edge-functions"
 WORKER_TRIGGER_SECRET="something-random-for-local-manual-triggers"
+
+# Phase 1 (Meta) - only needed once Facebook/Instagram/Threads are connected
+META_APP_ID=""
+META_APP_SECRET=""

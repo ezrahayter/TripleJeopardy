@@ -1,9 +1,19 @@
 import type { NetworkAdapter } from './types';
 import { blueskyAdapter } from './bluesky';
+import { facebookAdapter } from './facebook';
+import { instagramAdapter } from './instagram';
+import { threadsAdapter } from './threads';
 
-const registry: Record<string, NetworkAdapter> = {
-  [blueskyAdapter.network]: blueskyAdapter,
-};
+const adapters: NetworkAdapter[] = [
+  blueskyAdapter,
+  facebookAdapter,
+  instagramAdapter,
+  threadsAdapter,
+];
+
+const registry: Record<string, NetworkAdapter> = Object.fromEntries(
+  adapters.map((a) => [a.network, a]),
+);
 
 export function getAdapter(network: string): NetworkAdapter {
   const adapter = registry[network];
@@ -16,4 +26,4 @@ export function listNetworks(): string[] {
 }
 
 export * from './types';
-export { blueskyAdapter };
+export { blueskyAdapter, facebookAdapter, instagramAdapter, threadsAdapter };

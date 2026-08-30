@@ -1,10 +1,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { decryptSecret } from '../../shared/src/crypto';
 import { getAdapter } from '../../shared/src/adapters';
+import type { MediaInput } from '../../shared/src/adapters';
 import type { Env } from './index';
 
 const WORKER_ID = crypto.randomUUID();
 const BATCH = 10;
+const SIGNED_URL_TTL = 3600;
 
 interface ClaimedJob {
   id: string;
@@ -49,7 +51,7 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
     .select(
       `id,
        post:posts ( id, body ),
-       account:social_accounts ( network, handle, service_url, external_id, secret_ciphertext )`,
+       account:social_accounts ( network, handle, service_url, external_id, meta, secret_ciphertext )`,
     )
     .eq('id', job.post_target_id)
     .single();
@@ -67,15 +69,29 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
     .eq('post_id', post.id)
     .order('sort');
 
-  const media: Array<{ bytes: Uint8Array; mime: string; alt: string }> = [];
+  const wantsBytes = account.network === 'bluesky';
+  const media: MediaInput[] = [];
   for (const row of mediaRows ?? []) {
-    const { data: file, error: dlErr } = await supa.storage.from('media').download(row.storage_path);
-    if (dlErr || !file) throw new Error(`media download failed: ${dlErr?.message ?? 'missing'}`);
-    media.push({
-      bytes: new Uint8Array(await file.arrayBuffer()),
-      mime: file.type || 'image/jpeg',
-      alt: row.alt_text ?? '',
-    });
+    const mime = guessMime(row.storage_path);
+    if (wantsBytes) {
+      const { data: file, error: dlErr } = await supa.storage
+        .from('media')
+        .download(row.storage_path);
+      if (dlErr || !file) throw new Error(`media download failed: ${dlErr?.message ?? 'missing'}`);
+      media.push({
+        bytes: new Uint8Array(await file.arrayBuffer()),
+        mime: file.type || mime,
+        alt: row.alt_text ?? '',
+      });
+    } else {
+      const { data: signed, error: sErr } = await supa.storage
+        .from('media')
+        .createSignedUrl(row.storage_path, SIGNED_URL_TTL);
+      if (sErr || !signed?.signedUrl) {
+        throw new Error(`could not sign media url: ${sErr?.message ?? 'missing'}`);
+      }
+      media.push({ url: signed.signedUrl, mime, alt: row.alt_text ?? '' });
+    }
   }
 
   const secret = await decryptSecret(account.secret_ciphertext, env.TJ_ENCRYPTION_KEY);
@@ -86,6 +102,7 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
       handle: account.handle,
       serviceUrl: account.service_url,
       externalId: account.external_id,
+      meta: account.meta ?? null,
     },
     secret,
     body: post.body ?? '',
@@ -99,4 +116,12 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
   });
 
   return result.url;
+}
+
+function guessMime(path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase() ?? '';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'webp') return 'image/webp';
+  return 'image/jpeg';
 }

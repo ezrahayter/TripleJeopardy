@@ -3,7 +3,10 @@
  * Phase 0 subset - widen `Network` and add tables as later phases land.
  */
 
-export type Network = 'bluesky';
+export type Network = 'bluesky' | 'facebook' | 'instagram' | 'threads';
+
+/** Networks connected via OAuth rather than a pasted credential. */
+export const OAUTH_NETWORKS: Network[] = ['facebook', 'instagram', 'threads'];
 
 export type PostStatus =
   | 'draft'
@@ -45,6 +48,8 @@ export interface SocialAccount {
   external_id: string | null;
   service_url: string;
   status: 'active' | 'error' | 'revoked';
+  token_expires_at: string | null;
+  meta: Record<string, unknown>;
   created_at: string;
 }
 

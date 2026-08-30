@@ -51,15 +51,16 @@ async function createSession(
 async function uploadBlob(
   serviceUrl: string,
   token: string,
-  media: MediaInput,
+  bytes: Uint8Array,
+  mime: string,
 ): Promise<unknown> {
   const res = await fetch(new URL('/xrpc/com.atproto.repo.uploadBlob', serviceUrl), {
     method: 'POST',
     headers: {
       authorization: `Bearer ${token}`,
-      'content-type': media.mime || 'application/octet-stream',
+      'content-type': mime || 'application/octet-stream',
     },
-    body: media.bytes,
+    body: bytes as BodyInit,
   });
   if (!res.ok) {
     throw new Error(`bluesky uploadBlob failed (${res.status}): ${await res.text()}`);
@@ -90,7 +91,9 @@ function validate({ body, media }: { body: string; media: MediaInput[] }): Valid
   if (media.length > MAX_IMAGES) errors.push(`Bluesky allows at most ${MAX_IMAGES} images.`);
   for (const m of media) {
     if (!m.mime.startsWith('image/')) errors.push(`Unsupported media type: ${m.mime}`);
-    if (m.bytes.byteLength > MAX_IMAGE_BYTES) errors.push('Each image must be under 1 MB.');
+    if (m.bytes && m.bytes.byteLength > MAX_IMAGE_BYTES) {
+      errors.push('Each image must be under 1 MB.');
+    }
   }
   return { ok: errors.length === 0, errors };
 }
@@ -101,7 +104,8 @@ export const blueskyAdapter: NetworkAdapter = {
   validate,
 
   async verify({ handle, secret, serviceUrl }: VerifyInput): Promise<VerifyResult> {
-    const session = await createSession(serviceUrl, handle, secret);
+    if (!handle) throw new Error('bluesky verify needs a handle');
+    const session = await createSession(serviceUrl ?? 'https://bsky.social', handle, secret);
     return { externalId: session.did, handle: session.handle };
   },
 
@@ -115,9 +119,10 @@ export const blueskyAdapter: NetworkAdapter = {
     if (media.length > 0) {
       const images: Array<{ alt: string; image: unknown }> = [];
       for (const m of media.slice(0, MAX_IMAGES)) {
+        if (!m.bytes) throw new Error('Bluesky needs raw image bytes, not a URL.');
         images.push({
           alt: m.alt ?? '',
-          image: await uploadBlob(account.serviceUrl, session.accessJwt, m),
+          image: await uploadBlob(account.serviceUrl, session.accessJwt, m.bytes, m.mime),
         });
       }
       embed = { $type: 'app.bsky.embed.images', images };

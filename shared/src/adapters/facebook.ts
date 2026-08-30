@@ -1,0 +1,91 @@
+import { graphGet, graphPost } from './meta-graph';
+import type {
+  MediaInput,
+  NetworkAdapter,
+  PublishInput,
+  PublishResult,
+  ValidationResult,
+  VerifyInput,
+  VerifyResult,
+} from './types';
+
+// Facebook Pages caption limit is generous (~63k); keep a sane guard.
+const MAX_TEXT = 60_000;
+
+function validate({ body, media }: { body: string; media: MediaInput[] }): ValidationResult {
+  const errors: string[] = [];
+  if (!body.trim() && media.length === 0) errors.push('Nothing to post.');
+  if (body.length > MAX_TEXT) errors.push('Text is too long for a Facebook post.');
+  for (const m of media) {
+    if (!m.mime.startsWith('image/')) errors.push(`Facebook (Phase 1) supports images only: ${m.mime}`);
+    if (!m.url) errors.push('Facebook needs a fetchable media URL.');
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+export const facebookAdapter: NetworkAdapter = {
+  network: 'facebook',
+
+  validate,
+
+  async verify({ secret, externalId }: VerifyInput): Promise<VerifyResult> {
+    if (!externalId) throw new Error('facebook verify needs the Page id');
+    const page = await graphGet<{ id: string; name: string }>(externalId, {
+      fields: 'id,name',
+      access_token: secret,
+    });
+    return { externalId: page.id, handle: page.name };
+  },
+
+  async publish({ account, secret, body, media }: PublishInput): Promise<PublishResult> {
+    const check = validate({ body, media });
+    if (!check.ok) throw new Error(check.errors.join(' '));
+
+    const pageId = account.externalId;
+    if (!pageId) throw new Error('facebook publish needs the Page id');
+
+    let postId: string;
+
+    if (media.length === 0) {
+      const res = await graphPost<{ id: string }>(`${pageId}/feed`, {
+        message: body,
+        access_token: secret,
+      });
+      postId = res.id;
+    } else if (media.length === 1) {
+      const res = await graphPost<{ id: string; post_id?: string }>(`${pageId}/photos`, {
+        url: media[0]!.url,
+        caption: body,
+        access_token: secret,
+      });
+      postId = res.post_id ?? res.id;
+    } else {
+      // upload each photo unpublished, then attach to one feed story
+      const fbids: string[] = [];
+      for (const m of media) {
+        const up = await graphPost<{ id: string }>(`${pageId}/photos`, {
+          url: m.url,
+          published: 'false',
+          access_token: secret,
+        });
+        fbids.push(up.id);
+      }
+      const params: Record<string, string> = { message: body, access_token: secret };
+      fbids.forEach((id, i) => {
+        params[`attached_media[${i}]`] = JSON.stringify({ media_fbid: id });
+      });
+      const res = await graphPost<{ id: string }>(`${pageId}/feed`, params);
+      postId = res.id;
+    }
+
+    const permalink = await graphGet<{ permalink_url?: string }>(postId, {
+      fields: 'permalink_url',
+      access_token: secret,
+    }).catch(() => ({ permalink_url: undefined }));
+
+    return {
+      externalId: postId,
+      url: permalink.permalink_url ?? `https://www.facebook.com/${postId}`,
+    };
+  },
+};

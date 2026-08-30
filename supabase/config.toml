@@ -5,5 +5,13 @@ project_id = "triple-jeopardy"
 [db]
 major_version = 15
 
+# All three functions verify the caller themselves (or are called by Meta), so
+# skip Supabase's built-in JWT gate.
 [functions.connect-bluesky]
+verify_jwt = false
+
+[functions.oauth-start]
+verify_jwt = false
+
+[functions.oauth-callback]
 verify_jwt = false
