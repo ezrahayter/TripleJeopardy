@@ -263,7 +263,27 @@ textarea {
   border-color: var(--ink);
 }
 
-/* ---------- review page (no login) ---------- */
+/* ---------- legal / review pages (no login) ---------- */
+.legal {
+  max-width: 680px;
+  margin: 40px auto 100px;
+  padding: 0 20px;
+  line-height: 1.6;
+}
+.legal h1 {
+  margin: 24px 0 4px;
+}
+.legal h2 {
+  margin: 28px 0 6px;
+  font-size: 1.2rem;
+}
+.legal ul {
+  padding-left: 1.2em;
+}
+.legal li {
+  margin-bottom: 6px;
+}
+
 .review-wrap {
   max-width: 520px;
   margin: 40px auto 80px;

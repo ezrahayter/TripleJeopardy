@@ -11,6 +11,7 @@ import { Compose } from './pages/Compose';
 import { Accounts } from './pages/Accounts';
 import { Settings } from './pages/Settings';
 import { Review } from './pages/Review';
+import { Privacy } from './pages/Privacy';
 
 function AuthedApp({ userId }: { userId: string }) {
   const ws = useWorkspace(userId);
@@ -91,6 +92,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/review/:token" element={<Review />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route
           path="/*"
           element={session ? <AuthedApp userId={session.user.id} /> : <Login />}
