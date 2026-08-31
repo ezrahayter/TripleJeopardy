@@ -4,9 +4,12 @@ import { getAdapter } from '../../shared/src/adapters';
 import type { MediaInput } from '../../shared/src/adapters';
 import type { Env } from './index';
 
-const WORKER_ID = crypto.randomUUID();
 const BATCH = 10;
 const SIGNED_URL_TTL = 3600;
+
+// Workers forbids random/IO at module scope - generate the id lazily.
+let workerId: string | undefined;
+const getWorkerId = () => (workerId ??= crypto.randomUUID());
 
 interface ClaimedJob {
   id: string;
@@ -24,7 +27,7 @@ export async function runPublisher(env: Env): Promise<{
   });
 
   const { data: jobs, error } = await supa.rpc('tj_claim_publish_jobs', {
-    p_worker: WORKER_ID,
+    p_worker: getWorkerId(),
     p_limit: BATCH,
   });
   if (error) throw new Error(`claim failed: ${error.message}`);
@@ -42,7 +45,7 @@ export async function runPublisher(env: Env): Promise<{
     }
   }
 
-  return { worker: WORKER_ID, claimed: jobs?.length ?? 0, results };
+  return { worker: getWorkerId(), claimed: jobs?.length ?? 0, results };
 }
 
 async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Promise<string> {
