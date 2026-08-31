@@ -2,10 +2,12 @@ import { useState, type FormEvent } from 'react';
 
 export function Bootstrap({
   onCreate,
+  onCancel,
 }: {
   onCreate: (orgName: string, campaignName: string) => Promise<void>;
+  onCancel?: () => void;
 }) {
-  const [orgName, setOrgName] = useState('Positive Force FL');
+  const [orgName, setOrgName] = useState('');
   const [campaignName, setCampaignName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -24,11 +26,20 @@ export function Bootstrap({
 
   return (
     <div className="center">
-      <h1>Set up your workspace</h1>
-      <p className="sub">One workspace holds every campaign you manage. Add your first race now.</p>
+      <h1>{onCancel ? 'New workspace' : 'Set up your workspace'}</h1>
+      <p className="sub">
+        A workspace is a self-contained set of campaigns and connected accounts.
+      </p>
       <form onSubmit={submit}>
         <label htmlFor="org">Workspace name</label>
-        <input id="org" type="text" value={orgName} onChange={(e) => setOrgName(e.target.value)} />
+        <input
+          id="org"
+          type="text"
+          required
+          value={orgName}
+          onChange={(e) => setOrgName(e.target.value)}
+          placeholder="Positive Force"
+        />
         <label htmlFor="campaign">First campaign</label>
         <input
           id="campaign"
@@ -43,6 +54,11 @@ export function Bootstrap({
           <button className="btn" type="submit" disabled={busy}>
             {busy ? 'Creating…' : 'Create workspace'}
           </button>
+          {onCancel && (
+            <button className="btn secondary" type="button" onClick={onCancel} disabled={busy}>
+              Cancel
+            </button>
+          )}
         </div>
       </form>
     </div>

@@ -1,14 +1,43 @@
 import { NavLink } from 'react-router-dom';
+import type { Org } from '@shared/types';
 import { useAuth } from '../lib/useAuth';
 
-export function Nav() {
+const NEW = '__new';
+
+export function Nav({
+  workspaces,
+  current,
+  onSelect,
+  onNew,
+}: {
+  workspaces: Org[];
+  current: Org;
+  onSelect: (id: string) => void;
+  onNew: () => void;
+}) {
   const { signOut } = useAuth();
+
   return (
     <header className="topbar">
       <span className="wordmark">
         Triple Jeopardy
-        <span className="firm">Positive Force FL</span>
+        <span className="firm">Positive Force</span>
       </span>
+
+      <select
+        className="ws-select"
+        value={current.id}
+        onChange={(e) => (e.target.value === NEW ? onNew() : onSelect(e.target.value))}
+        aria-label="Workspace"
+      >
+        {workspaces.map((w) => (
+          <option key={w.id} value={w.id}>
+            {w.name}
+          </option>
+        ))}
+        <option value={NEW}>+ New workspace…</option>
+      </select>
+
       <nav className="nav">
         <NavLink to="/" end>
           Posts

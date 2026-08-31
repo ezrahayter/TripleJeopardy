@@ -1,61 +1,104 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Campaign, Org } from '@shared/types';
 import { supabase } from './supabase';
 
-interface Workspace {
-  loading: boolean;
-  org: Org | null;
-  campaigns: Campaign[];
-  reload: () => Promise<void>;
-  bootstrap: (orgName: string, campaignName: string) => Promise<void>;
+const STORAGE_KEY = 'tj.currentOrg';
+
+function storedOrgId(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
 }
 
-export function useWorkspace(userId: string | undefined): Workspace {
+interface WorkspaceState {
+  loading: boolean;
+  orgs: Org[];
+  org: Org | null;
+  campaigns: Campaign[];
+  selectWorkspace: (id: string) => void;
+  createWorkspace: (name: string, firstCampaign: string) => Promise<void>;
+  reload: () => Promise<void>;
+}
+
+export function useWorkspace(userId: string | undefined): WorkspaceState {
   const [loading, setLoading] = useState(true);
-  const [org, setOrg] = useState<Org | null>(null);
+  const [orgs, setOrgs] = useState<Org[]>([]);
+  const [currentId, setCurrentId] = useState<string | null>(storedOrgId);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
 
-  const reload = useCallback(async () => {
-    if (!userId) return;
-    setLoading(true);
-
-    const { data: membership } = await supabase
+  const loadOrgs = useCallback(async (): Promise<Org[]> => {
+    if (!userId) return [];
+    const { data } = await supabase
       .from('memberships')
       .select('org:orgs(*)')
-      .limit(1)
-      .maybeSingle();
-
-    const nextOrg = (membership?.org as unknown as Org | undefined) ?? null;
-    setOrg(nextOrg);
-
-    if (nextOrg) {
-      const { data: rows } = await supabase
-        .from('campaigns')
-        .select('*')
-        .eq('org_id', nextOrg.id)
-        .order('created_at');
-      setCampaigns((rows as unknown as Campaign[]) ?? []);
-    } else {
-      setCampaigns([]);
-    }
-    setLoading(false);
+      .order('created_at');
+    const list = ((data ?? []) as unknown as Array<{ org: Org | null }>)
+      .map((r) => r.org)
+      .filter((o): o is Org => Boolean(o));
+    setOrgs(list);
+    return list;
   }, [userId]);
 
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+  const org = useMemo(() => {
+    if (orgs.length === 0) return null;
+    const chosen = currentId && orgs.find((o) => o.id === currentId);
+    return chosen || orgs[0] || null;
+  }, [orgs, currentId]);
 
-  const bootstrap = useCallback(
-    async (orgName: string, campaignName: string) => {
-      const { error } = await supabase.rpc('tj_bootstrap', {
-        p_org_name: orgName,
-        p_campaign_name: campaignName,
+  const loadCampaigns = useCallback(async (orgId: string) => {
+    const { data } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('org_id', orgId)
+      .order('created_at');
+    setCampaigns((data as unknown as Campaign[]) ?? []);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      await loadOrgs();
+      if (!cancelled) setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadOrgs]);
+
+  useEffect(() => {
+    if (org) void loadCampaigns(org.id);
+    else setCampaigns([]);
+  }, [org, loadCampaigns]);
+
+  const selectWorkspace = useCallback((id: string) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, id);
+    } catch {
+      /* private mode - selection just won't persist */
+    }
+    setCurrentId(id);
+  }, []);
+
+  const createWorkspace = useCallback(
+    async (name: string, firstCampaign: string) => {
+      const { data, error } = await supabase.rpc('tj_bootstrap', {
+        p_org_name: name,
+        p_campaign_name: firstCampaign,
       });
       if (error) throw error;
-      await reload();
+      await loadOrgs();
+      selectWorkspace(data as string);
     },
-    [reload],
+    [loadOrgs, selectWorkspace],
   );
 
-  return { loading, org, campaigns, reload, bootstrap };
+  const reload = useCallback(async () => {
+    await loadOrgs();
+    if (org) await loadCampaigns(org.id);
+  }, [loadOrgs, loadCampaigns, org]);
+
+  return { loading, orgs, org, campaigns, selectWorkspace, createWorkspace, reload };
 }

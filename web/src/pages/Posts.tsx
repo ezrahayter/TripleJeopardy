@@ -9,7 +9,7 @@ type Row = Post & {
   post_targets: Array<Pick<PostTarget, 'status' | 'external_url' | 'error'>>;
 };
 
-export function Posts() {
+export function Posts({ orgId }: { orgId: string }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,11 +19,12 @@ export function Posts() {
     const { data, error } = await supabase
       .from('posts')
       .select('*, campaign:campaigns(name), post_targets(status, external_url, error)')
+      .eq('org_id', orgId)
       .order('created_at', { ascending: false });
     setLoading(false);
     if (error) setError(error.message);
     else setRows((data as unknown as Row[]) ?? []);
-  }, []);
+  }, [orgId]);
 
   useEffect(() => {
     void load();

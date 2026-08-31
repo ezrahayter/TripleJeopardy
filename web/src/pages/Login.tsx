@@ -23,7 +23,7 @@ export function Login() {
     <div className="center">
       <span className="wordmark">
         Triple Jeopardy
-        <span className="firm">Positive Force FL</span>
+        <span className="firm">Positive Force</span>
       </span>
       <h1>Sign in</h1>
 

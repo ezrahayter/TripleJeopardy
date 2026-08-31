@@ -9,7 +9,7 @@ const NETWORK_LABEL: Record<string, string> = {
   threads: 'Threads',
 };
 
-export function Accounts({ campaigns }: { campaigns: Campaign[] }) {
+export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campaign[] }) {
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [campaignId, setCampaignId] = useState(campaigns[0]?.id ?? '');
   const [handle, setHandle] = useState('');
@@ -24,9 +24,10 @@ export function Accounts({ campaigns }: { campaigns: Campaign[] }) {
       .select(
         'id, org_id, campaign_id, network, account_type, handle, external_id, service_url, status, token_expires_at, meta, created_at',
       )
+      .eq('org_id', orgId)
       .order('created_at');
     setAccounts((data as unknown as SocialAccount[]) ?? []);
-  }, []);
+  }, [orgId]);
 
   useEffect(() => {
     void load();

@@ -28,6 +28,18 @@
   font-family: var(--font-mono);
   font-weight: 500;
 }
+.ws-select {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 5px 8px;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  color: var(--ink);
+  max-width: 220px;
+}
+
 .nav {
   display: flex;
   gap: 4px;
