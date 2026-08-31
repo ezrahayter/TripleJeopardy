@@ -68,24 +68,32 @@ export function Accounts({ campaigns }: { campaigns: Campaign[] }) {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const { error } = await supabase.functions.invoke('connect-bluesky', {
-      body: { campaign_id: campaignId, handle, app_password: appPassword },
-    });
-    setBusy(false);
-    if (error) {
-      let message = error.message;
-      try {
-        const body = await (error as { context?: Response }).context?.json();
-        if (body?.error) message = body.error as string;
-      } catch {
-        /* keep the generic message */
+    setNotice(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('connect-bluesky', {
+        body: { campaign_id: campaignId, handle: handle.trim(), app_password: appPassword.trim() },
+      });
+      if (error) {
+        let message = error.message;
+        try {
+          const body = await (error as { context?: Response }).context?.json();
+          if (body?.error) message = body.error as string;
+        } catch {
+          /* keep the generic message */
+        }
+        setError(`Bluesky connect failed: ${message}`);
+        return;
       }
-      setError(message);
-      return;
+      const acct = (data as { account?: { handle?: string } } | null)?.account;
+      setNotice(`Connected Bluesky account @${acct?.handle ?? handle.trim()}.`);
+      setHandle('');
+      setAppPassword('');
+      await load();
+    } catch (err) {
+      setError(`Bluesky connect failed: ${String((err as Error)?.message ?? err)}`);
+    } finally {
+      setBusy(false);
     }
-    setHandle('');
-    setAppPassword('');
-    void load();
   }
 
   async function remove(id: string) {

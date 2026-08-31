@@ -5,18 +5,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { metaAuthorizeUrl } from '../_shared/meta.ts';
 import { threadsAuthorizeUrl } from '../_shared/threads.ts';
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...cors, 'content-type': 'application/json' },
-  });
+import { cors, jsonResponse as json } from '../_shared/cors.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });

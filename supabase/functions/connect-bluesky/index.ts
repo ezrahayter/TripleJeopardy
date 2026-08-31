@@ -7,19 +7,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { encryptSecret } from '../_shared/crypto.ts';
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...cors, 'content-type': 'application/json' },
-  });
-}
+import { cors, jsonResponse as json } from '../_shared/cors.ts';
 
 interface Session {
   did: string;
