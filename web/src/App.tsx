@@ -52,6 +52,10 @@ function AuthedApp({ userId }: { userId: string }) {
           element={<Compose key={orgId} orgId={orgId} campaigns={ws.campaigns} />}
         />
         <Route
+          path="/compose/:id"
+          element={<Compose orgId={orgId} campaigns={ws.campaigns} />}
+        />
+        <Route
           path="/accounts"
           element={<Accounts key={orgId} orgId={orgId} campaigns={ws.campaigns} />}
         />
@@ -61,8 +65,12 @@ function AuthedApp({ userId }: { userId: string }) {
             <Settings
               key={orgId}
               org={ws.org}
+              campaigns={ws.campaigns}
               onRename={ws.renameWorkspace}
               onDelete={ws.deleteWorkspace}
+              onAddCampaign={ws.addCampaign}
+              onRenameCampaign={ws.renameCampaign}
+              onDeleteCampaign={ws.deleteCampaign}
             />
           }
         />

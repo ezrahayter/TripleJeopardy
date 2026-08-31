@@ -21,6 +21,9 @@ interface WorkspaceState {
   createWorkspace: (name: string, firstCampaign: string) => Promise<void>;
   renameWorkspace: (id: string, name: string) => Promise<void>;
   deleteWorkspace: (id: string) => Promise<void>;
+  addCampaign: (name: string) => Promise<void>;
+  renameCampaign: (id: string, name: string) => Promise<void>;
+  deleteCampaign: (id: string) => Promise<void>;
   reload: () => Promise<void>;
 }
 
@@ -118,6 +121,36 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
     [loadOrgs],
   );
 
+  const addCampaign = useCallback(
+    async (name: string) => {
+      if (!org) throw new Error('no workspace selected');
+      const { error } = await supabase
+        .from('campaigns')
+        .insert({ org_id: org.id, name: name.trim() });
+      if (error) throw error;
+      await loadCampaigns(org.id);
+    },
+    [org, loadCampaigns],
+  );
+
+  const renameCampaign = useCallback(
+    async (id: string, name: string) => {
+      const { error } = await supabase.from('campaigns').update({ name: name.trim() }).eq('id', id);
+      if (error) throw error;
+      if (org) await loadCampaigns(org.id);
+    },
+    [org, loadCampaigns],
+  );
+
+  const deleteCampaign = useCallback(
+    async (id: string) => {
+      const { error } = await supabase.from('campaigns').delete().eq('id', id);
+      if (error) throw error;
+      if (org) await loadCampaigns(org.id);
+    },
+    [org, loadCampaigns],
+  );
+
   const reload = useCallback(async () => {
     await loadOrgs();
     if (org) await loadCampaigns(org.id);
@@ -132,6 +165,9 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
     createWorkspace,
     renameWorkspace,
     deleteWorkspace,
+    addCampaign,
+    renameCampaign,
+    deleteCampaign,
     reload,
   };
 }

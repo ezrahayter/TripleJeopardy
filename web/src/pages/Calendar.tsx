@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { StatusChip } from '../components/StatusChip';
+import { PostThumbs } from '../components/PostThumbs';
 import type { PostStatus } from '@shared/types';
 
 interface CalPost {
@@ -208,6 +209,7 @@ function PostModal({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const navigate = useNavigate();
   const [when, setWhen] = useState(toLocalInput(post.scheduled_at));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -231,6 +233,7 @@ function PostModal({
           <strong>{post.campaign?.name}</strong>
         </div>
         <p className="body">{post.body || <span className="muted">(no text)</span>}</p>
+        <PostThumbs postId={post.id} />
 
         {error && <p className="notice error">{error}</p>}
 
@@ -282,6 +285,13 @@ function PostModal({
                   Move to drafts
                 </button>
               )}
+              <button
+                className="btn secondary"
+                type="button"
+                onClick={() => navigate(`/compose/${post.id}`)}
+              >
+                Edit
+              </button>
               <button
                 className="btn danger"
                 type="button"

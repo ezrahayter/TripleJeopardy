@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import type { Campaign } from '@shared/types';
+import type { Campaign, PostStatus } from '@shared/types';
+
+interface ExistingMedia {
+  id: string;
+  path: string;
+  url: string;
+}
 
 function isoToLocalInput(iso: string | null): string {
   if (!iso) return '';
@@ -12,20 +18,70 @@ function isoToLocalInput(iso: string | null): string {
 }
 
 type Mode = 'draft' | 'schedule' | 'now';
+const MAX_IMAGES = 4;
 
 export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campaign[] }) {
   const navigate = useNavigate();
+  const { id: editId } = useParams();
   const [params] = useSearchParams();
+
+  const [loaded, setLoaded] = useState(!editId);
   const [campaignId, setCampaignId] = useState(campaigns[0]?.id ?? '');
   const [body, setBody] = useState('');
   const [files, setFiles] = useState<File[]>([]);
-  const [scheduleAt, setScheduleAt] = useState(() => isoToLocalInput(params.get('at')));
   const [previews, setPreviews] = useState<string[]>([]);
+  const [existing, setExisting] = useState<ExistingMedia[]>([]);
+  const [scheduleAt, setScheduleAt] = useState(() => isoToLocalInput(params.get('at')));
   const [hasAccounts, setHasAccounts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const chars = [...body].length;
+  const totalImages = existing.length + files.length;
+
+  const loadExistingMedia = useCallback(async (postId: string) => {
+    const { data: rows } = await supabase
+      .from('post_media')
+      .select('id, storage_path')
+      .eq('post_id', postId)
+      .order('sort');
+    const paths = (rows ?? []).map((r) => r.storage_path as string);
+    if (paths.length === 0) {
+      setExisting([]);
+      return;
+    }
+    const { data: signed } = await supabase.storage.from('media').createSignedUrls(paths, 3600);
+    const urlByPath = new Map((signed ?? []).map((s) => [s.path ?? '', s.signedUrl]));
+    setExisting(
+      (rows ?? []).map((r) => ({
+        id: r.id as string,
+        path: r.storage_path as string,
+        url: urlByPath.get(r.storage_path as string) ?? '',
+      })),
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!editId) return;
+    void (async () => {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('body, status, campaign_id, scheduled_at')
+        .eq('id', editId)
+        .single();
+      if (error || !data) {
+        setError('Could not load that post.');
+        setLoaded(true);
+        return;
+      }
+      setBody(data.body ?? '');
+      setCampaignId(data.campaign_id as string);
+      setScheduleAt(isoToLocalInput(data.scheduled_at as string | null));
+      void (data.status as PostStatus);
+      await loadExistingMedia(editId);
+      setLoaded(true);
+    })();
+  }, [editId, loadExistingMedia]);
 
   useEffect(() => {
     const urls = files.map((f) => URL.createObjectURL(f));
@@ -43,9 +99,23 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       .then(({ count }) => setHasAccounts((count ?? 0) > 0));
   }, [campaignId]);
 
+  function addFiles(list: FileList | null) {
+    const room = MAX_IMAGES - existing.length - files.length;
+    if (room <= 0) return;
+    setFiles((prev) => [...prev, ...Array.from(list ?? []).slice(0, room)]);
+  }
+
+  async function removeExisting(m: ExistingMedia) {
+    setBusy(true);
+    await supabase.storage.from('media').remove([m.path]);
+    await supabase.from('post_media').delete().eq('id', m.id);
+    setExisting((xs) => xs.filter((x) => x.id !== m.id));
+    setBusy(false);
+  }
+
   async function save(mode: Mode) {
     setError(null);
-    if (!body.trim() && files.length === 0) {
+    if (!body.trim() && totalImages === 0) {
       setError('Add some text or an image.');
       return;
     }
@@ -60,35 +130,47 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
 
     setBusy(true);
     try {
-      const { data: post, error: postErr } = await supabase
-        .from('posts')
-        .insert({ org_id: orgId, campaign_id: campaignId, body, status: 'draft' })
-        .select('id')
-        .single();
-      if (postErr || !post) throw postErr ?? new Error('could not create post');
+      let postId = editId ?? '';
+      if (editId) {
+        const { error } = await supabase
+          .from('posts')
+          .update({ body, campaign_id: campaignId })
+          .eq('id', editId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('posts')
+          .insert({ org_id: orgId, campaign_id: campaignId, body, status: 'draft' })
+          .select('id')
+          .single();
+        if (error || !data) throw error ?? new Error('could not create post');
+        postId = data.id as string;
+      }
 
+      const base = existing.length;
       for (let i = 0; i < files.length; i++) {
         const file = files[i]!;
         const ext = file.name.split('.').pop() ?? 'bin';
-        const path = `${campaignId}/${post.id}/${crypto.randomUUID()}.${ext}`;
+        const path = `${campaignId}/${postId}/${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from('media')
           .upload(path, file, { contentType: file.type });
         if (upErr) throw upErr;
-        const { error: mediaErr } = await supabase
+        const { error: mErr } = await supabase
           .from('post_media')
-          .insert({ post_id: post.id, storage_path: path, sort: i, alt_text: '' });
-        if (mediaErr) throw mediaErr;
+          .insert({ post_id: postId, storage_path: path, sort: base + i, alt_text: '' });
+        if (mErr) throw mErr;
       }
 
-      if (mode !== 'draft') {
+      if (mode === 'draft') {
+        await supabase.from('posts').update({ status: 'draft', scheduled_at: null }).eq('id', postId);
+      } else {
         const when =
           mode === 'schedule' ? new Date(scheduleAt).toISOString() : new Date().toISOString();
-        const { error: schedErr } = await supabase
+        await supabase
           .from('posts')
           .update({ status: 'scheduled', scheduled_at: when })
-          .eq('id', post.id);
-        if (schedErr) throw schedErr;
+          .eq('id', postId);
       }
 
       navigate(mode === 'draft' ? '/posts' : '/');
@@ -98,14 +180,15 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
     }
   }
 
+  if (!loaded) return <p className="muted">Loading…</p>;
+
   return (
     <>
-      <h1>Compose</h1>
+      <h1>{editId ? 'Edit post' : 'Compose'}</h1>
       <p className="sub">
-        Write a post and drop it on the calendar.{' '}
         {hasAccounts
-          ? 'It publishes automatically to the campaign’s connected accounts at the scheduled time.'
-          : 'Nothing’s connected for this campaign yet, so it just sits on the calendar as a plan until you connect accounts.'}
+          ? 'This publishes automatically to the campaign’s connected accounts at the scheduled time.'
+          : 'Nothing’s connected for this campaign yet, so it sits on the calendar as a plan until you connect accounts.'}
       </p>
 
       <label htmlFor="campaign">Campaign</label>
@@ -125,18 +208,36 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
         Limits when it publishes: Bluesky 300 · Threads 500 · Instagram 2,200 · Facebook long
       </p>
 
-      <label htmlFor="images">Images (optional, up to 4)</label>
-      <input
-        id="images"
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 4))}
-      />
-      {files.length > 0 && (
+      <label htmlFor="images">Images ({totalImages}/{MAX_IMAGES})</label>
+      {totalImages < MAX_IMAGES && (
+        <input
+          id="images"
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = '';
+          }}
+        />
+      )}
+      {(existing.length > 0 || files.length > 0) && (
         <div className="thumbs">
+          {existing.map((m) => (
+            <div className="thumb" key={m.id}>
+              <img src={m.url} alt="" />
+              <button
+                type="button"
+                aria-label="Remove image"
+                disabled={busy}
+                onClick={() => void removeExisting(m)}
+              >
+                ×
+              </button>
+            </div>
+          ))}
           {files.map((f, i) => (
-            <div className="thumb" key={i}>
+            <div className="thumb" key={`new-${i}`}>
               <img src={previews[i]} alt={f.name} />
               <button
                 type="button"
@@ -170,15 +271,10 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
           disabled={busy || !scheduleAt}
           onClick={() => void save('schedule')}
         >
-          {busy ? 'Working…' : 'Add to calendar'}
+          {busy ? 'Working…' : editId ? 'Save to calendar' : 'Add to calendar'}
         </button>
         {hasAccounts && (
-          <button
-            className="btn secondary"
-            type="button"
-            disabled={busy}
-            onClick={() => void save('now')}
-          >
+          <button className="btn secondary" type="button" disabled={busy} onClick={() => void save('now')}>
             Publish now
           </button>
         )}

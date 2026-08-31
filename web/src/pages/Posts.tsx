@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { StatusChip } from '../components/StatusChip';
+import { PostThumbs } from '../components/PostThumbs';
 import type { Post, PostTarget } from '@shared/types';
 
 type Row = Post & {
@@ -29,15 +30,6 @@ export function Posts({ orgId }: { orgId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
-
-  async function publishNow(id: string) {
-    const { error } = await supabase
-      .from('posts')
-      .update({ status: 'scheduled', scheduled_at: new Date().toISOString() })
-      .eq('id', id);
-    if (error) setError(error.message);
-    else void load();
-  }
 
   return (
     <>
@@ -71,6 +63,7 @@ export function Posts({ orgId }: { orgId: string }) {
             )}
           </div>
           <p className="body">{row.body || <span className="muted">(no text)</span>}</p>
+          <PostThumbs postId={row.id} />
 
           {row.post_targets.map((t, i) => (
             <div className="meta" key={i}>
@@ -87,11 +80,11 @@ export function Posts({ orgId }: { orgId: string }) {
             </div>
           ))}
 
-          {row.status === 'draft' && (
+          {row.status !== 'published' && (
             <div className="btnrow">
-              <button className="btn secondary" type="button" onClick={() => void publishNow(row.id)}>
-                Publish now
-              </button>
+              <Link className="btn secondary" to={`/compose/${row.id}`}>
+                Edit
+              </Link>
             </div>
           )}
         </div>
