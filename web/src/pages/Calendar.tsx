@@ -33,7 +33,8 @@ export function Calendar({ orgId }: { orgId: string }) {
   const navigate = useNavigate();
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [posts, setPosts] = useState<CalPost[]>([]);
-  const [draftCount, setDraftCount] = useState(0);
+  const [drafts, setDrafts] = useState<CalPost[]>([]);
+  const [showDrafts, setShowDrafts] = useState(false);
   const [selected, setSelected] = useState<CalPost | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,13 +68,14 @@ export function Calendar({ orgId }: { orgId: string }) {
     setError(null);
     setPosts((data as unknown as CalPost[]) ?? []);
 
-    const { count } = await supabase
+    const { data: draftRows } = await supabase
       .from('posts')
-      .select('id', { count: 'exact', head: true })
+      .select('id, body, status, scheduled_at, campaign:campaigns(name)')
       .eq('org_id', orgId)
       .is('scheduled_at', null)
-      .eq('status', 'draft');
-    setDraftCount(count ?? 0);
+      .eq('status', 'draft')
+      .order('created_at', { ascending: false });
+    setDrafts((draftRows as unknown as CalPost[]) ?? []);
   }, [orgId, cells]);
 
   useEffect(() => {
@@ -115,20 +117,33 @@ export function Calendar({ orgId }: { orgId: string }) {
       </div>
 
       {error && <p className="notice error">{error}</p>}
-      {draftCount > 0 && (
-        <p className="notice">
-          {draftCount} unscheduled draft{draftCount > 1 ? 's' : ''} —{' '}
-          <a
-            href="/posts"
-            onClick={(e) => {
-              e.preventDefault();
-              navigate('/posts');
-            }}
+
+      {drafts.length > 0 && (
+        <div className="notice">
+          <button
+            type="button"
+            className="draft-toggle"
+            onClick={() => setShowDrafts((s) => !s)}
           >
-            open the list
-          </a>{' '}
-          to schedule them.
-        </p>
+            {showDrafts ? '▾' : '▸'} {drafts.length} unscheduled draft
+            {drafts.length > 1 ? 's' : ''}
+          </button>
+          {showDrafts && (
+            <div className="draft-list">
+              {drafts.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  className="draft-row"
+                  onClick={() => setSelected(d)}
+                >
+                  <strong>{d.campaign?.name ?? '—'}</strong>{' '}
+                  {d.body ? d.body.slice(0, 80) : '(no text)'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       <div className="cal-scroll">
@@ -197,6 +212,7 @@ function PostModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const published = post.status === 'published';
+  const isDraft = post.status === 'draft';
 
   async function run(op: PromiseLike<{ error: { message: string } | null }>) {
     setBusy(true);
@@ -226,7 +242,7 @@ function PostModal({
           </div>
         ) : (
           <>
-            <label htmlFor="m-when">Scheduled for</label>
+            <label htmlFor="m-when">{isDraft ? 'Put on the calendar for' : 'Scheduled for'}</label>
             <input
               id="m-when"
               type="datetime-local"
@@ -247,23 +263,25 @@ function PostModal({
                   )
                 }
               >
-                Reschedule
+                {isDraft ? 'Add to calendar' : 'Reschedule'}
               </button>
-              <button
-                className="btn secondary"
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  void run(
-                    supabase
-                      .from('posts')
-                      .update({ status: 'draft', scheduled_at: null })
-                      .eq('id', post.id),
-                  )
-                }
-              >
-                Unschedule
-              </button>
+              {!isDraft && (
+                <button
+                  className="btn secondary"
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(
+                      supabase
+                        .from('posts')
+                        .update({ status: 'draft', scheduled_at: null })
+                        .eq('id', post.id),
+                    )
+                  }
+                >
+                  Move to drafts
+                </button>
+              )}
               <button
                 className="btn danger"
                 type="button"

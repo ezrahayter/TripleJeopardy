@@ -219,6 +219,34 @@ textarea {
 }
 
 /* ---------- calendar ---------- */
+.draft-toggle {
+  background: none;
+  border: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+.draft-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+.draft-row {
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.draft-row:hover {
+  border-color: var(--rule-strong);
+}
+
 .cal-head {
   display: flex;
   justify-content: space-between;
