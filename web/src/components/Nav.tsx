@@ -44,6 +44,7 @@ export function Nav({
         </NavLink>
         <NavLink to="/compose">Compose</NavLink>
         <NavLink to="/accounts">Accounts</NavLink>
+        <NavLink to="/settings">Settings</NavLink>
         <button type="button" onClick={() => void signOut()}>
           Sign out
         </button>

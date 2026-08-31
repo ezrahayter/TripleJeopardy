@@ -19,6 +19,8 @@ interface WorkspaceState {
   campaigns: Campaign[];
   selectWorkspace: (id: string) => void;
   createWorkspace: (name: string, firstCampaign: string) => Promise<void>;
+  renameWorkspace: (id: string, name: string) => Promise<void>;
+  deleteWorkspace: (id: string) => Promise<void>;
   reload: () => Promise<void>;
 }
 
@@ -95,10 +97,41 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
     [loadOrgs, selectWorkspace],
   );
 
+  const renameWorkspace = useCallback(async (id: string, name: string) => {
+    const { error } = await supabase.from('orgs').update({ name: name.trim() }).eq('id', id);
+    if (error) throw error;
+    await loadOrgs();
+  }, [loadOrgs]);
+
+  const deleteWorkspace = useCallback(
+    async (id: string) => {
+      const { error } = await supabase.from('orgs').delete().eq('id', id);
+      if (error) throw error;
+      try {
+        if (localStorage.getItem(STORAGE_KEY) === id) localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
+      const remaining = await loadOrgs();
+      setCurrentId(remaining[0]?.id ?? null);
+    },
+    [loadOrgs],
+  );
+
   const reload = useCallback(async () => {
     await loadOrgs();
     if (org) await loadCampaigns(org.id);
   }, [loadOrgs, loadCampaigns, org]);
 
-  return { loading, orgs, org, campaigns, selectWorkspace, createWorkspace, reload };
+  return {
+    loading,
+    orgs,
+    org,
+    campaigns,
+    selectWorkspace,
+    createWorkspace,
+    renameWorkspace,
+    deleteWorkspace,
+    reload,
+  };
 }

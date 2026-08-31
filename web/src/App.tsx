@@ -8,6 +8,7 @@ import { Bootstrap } from './pages/Bootstrap';
 import { Posts } from './pages/Posts';
 import { Compose } from './pages/Compose';
 import { Accounts } from './pages/Accounts';
+import { Settings } from './pages/Settings';
 
 function AuthedApp({ userId }: { userId: string }) {
   const ws = useWorkspace(userId);
@@ -51,6 +52,17 @@ function AuthedApp({ userId }: { userId: string }) {
         <Route
           path="/accounts"
           element={<Accounts key={orgId} orgId={orgId} campaigns={ws.campaigns} />}
+        />
+        <Route
+          path="/settings"
+          element={
+            <Settings
+              key={orgId}
+              org={ws.org}
+              onRename={ws.renameWorkspace}
+              onDelete={ws.deleteWorkspace}
+            />
+          }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
