@@ -1,11 +1,8 @@
-import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { supabase } from './lib/supabase';
 import { useAuth } from './lib/useAuth';
 import { useWorkspace } from './lib/useWorkspace';
 import { Nav } from './components/Nav';
 import { Login } from './pages/Login';
-import { SetPassword } from './pages/SetPassword';
 import { Bootstrap } from './pages/Bootstrap';
 import { Posts } from './pages/Posts';
 import { Compose } from './pages/Compose';
@@ -32,26 +29,12 @@ function AuthedApp({ userId }: { userId: string }) {
 
 export default function App() {
   const { session, loading } = useAuth();
-  const [recovery, setRecovery] = useState(false);
-
-  useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setRecovery(true);
-    });
-    return () => data.subscription.unsubscribe();
-  }, []);
 
   if (loading) return <p className="center muted">Loading…</p>;
 
   return (
     <BrowserRouter>
-      {recovery ? (
-        <SetPassword onDone={() => setRecovery(false)} />
-      ) : session ? (
-        <AuthedApp userId={session.user.id} />
-      ) : (
-        <Login />
-      )}
+      {session ? <AuthedApp userId={session.user.id} /> : <Login />}
     </BrowserRouter>
   );
 }
