@@ -20,11 +20,18 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const [body, setBody] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [scheduleAt, setScheduleAt] = useState(() => isoToLocalInput(params.get('at')));
+  const [previews, setPreviews] = useState<string[]>([]);
   const [hasAccounts, setHasAccounts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const chars = [...body].length;
+
+  useEffect(() => {
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setPreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [files]);
 
   useEffect(() => {
     if (!campaignId) return;
@@ -126,6 +133,22 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
         multiple
         onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 4))}
       />
+      {files.length > 0 && (
+        <div className="thumbs">
+          {files.map((f, i) => (
+            <div className="thumb" key={i}>
+              <img src={previews[i]} alt={f.name} />
+              <button
+                type="button"
+                aria-label={`Remove ${f.name}`}
+                onClick={() => setFiles(files.filter((_, j) => j !== i))}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <label htmlFor="when">Date &amp; time on the calendar</label>
       <input

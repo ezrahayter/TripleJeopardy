@@ -45,6 +45,7 @@ Status: **✅ done · 🔜 next · P1–P4 planned phase · 💤 maybe later**
 | Campaign date anchors (election day, filing deadlines, debates) | *ours* | P2 |
 | Content gaps / cadence warnings | *ours* | P3 |
 | Color-coding by campaign or pillar | Planable | P2 |
+| Google Calendar connection — push scheduled posts to a Google Calendar (or an iCal subscription feed) so the whole team sees them alongside everything else | Buffer (iCal), *ours* | P2 |
 
 ## 3. Collaboration & approvals — *Planable, Sprout, Hootsuite*
 

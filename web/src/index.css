@@ -145,6 +145,40 @@ textarea {
   flex-wrap: wrap;
 }
 
+.thumbs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.thumb {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border: 1px solid var(--rule-strong);
+  background: var(--surface-sunk);
+}
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.thumb button {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  border: 1px solid var(--ink);
+  background: var(--bone);
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--rule);
