@@ -16,7 +16,7 @@ alter table posts add column approval_state text not null default 'not_required'
 
 -- ── review links (the reviewer's no-login magic link) ────────────
 create table review_links (
-  token       text primary key default encode(gen_random_bytes(24), 'hex'),
+  token       text primary key default encode(extensions.gen_random_bytes(24), 'hex'),
   post_id     uuid not null references posts (id) on delete cascade,
   campaign_id uuid not null references campaigns (id) on delete cascade,
   created_at  timestamptz not null default now(),
