@@ -4,9 +4,12 @@
   "version": "0.0.0",
   "description": "Triple Jeopardy - social publishing with campaign sign-off. A Positive Force FL tool. Phase 0 skeleton.",
   "scripts": {
-    "install:all": "npm install --prefix shared && npm install --prefix web && npm install --prefix worker",
+    "install:all": "npm install && npm install --prefix shared && npm install --prefix web && npm install --prefix worker",
     "dev": "npm run dev --prefix web",
     "dev:worker": "npm run dev --prefix worker",
     "typecheck": "npm run typecheck --prefix shared && npm run typecheck --prefix web && npm run typecheck --prefix worker"
+  },
+  "devDependencies": {
+    "supabase": "^2.116.0"
   }
 }
