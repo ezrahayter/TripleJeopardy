@@ -217,3 +217,111 @@ textarea {
   max-width: 400px;
   margin: 80px auto;
 }
+
+/* ---------- calendar ---------- */
+.cal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.cal-scroll {
+  overflow-x: auto;
+  margin-top: 16px;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(90px, 1fr));
+  border: 1px solid var(--rule);
+  border-right: none;
+  border-bottom: none;
+  min-width: 640px;
+}
+.cal-dow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--olive);
+  padding: 6px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+}
+.cal-cell {
+  min-height: 100px;
+  padding: 4px;
+  border-bottom: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: pointer;
+}
+.cal-cell:hover {
+  background: color-mix(in srgb, var(--coral) 8%, var(--surface));
+}
+.cal-cell.out {
+  background: var(--surface-sunk);
+}
+.cal-cell.out .cal-date {
+  opacity: 0.4;
+}
+.cal-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--olive);
+  align-self: flex-start;
+}
+.cal-cell.today .cal-date {
+  background: var(--brick);
+  color: var(--bone);
+  padding: 0 4px;
+}
+.cal-post {
+  text-align: left;
+  border: none;
+  border-left: 2px solid var(--olive);
+  background: var(--surface);
+  padding: 2px 5px;
+  font-size: 11px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.cal-post[data-status='scheduled'],
+.cal-post[data-status='publishing'] {
+  border-left-color: var(--coral);
+}
+.cal-post[data-status='published'] {
+  border-left-color: var(--ink);
+}
+.cal-post[data-status='failed'] {
+  border-left-color: var(--brick);
+}
+.cal-post .txt {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- modal ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(55, 56, 49, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+.modal {
+  background: var(--bone);
+  border: 1px solid var(--rule-strong);
+  padding: 20px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 12px 40px -8px rgba(55, 56, 49, 0.35);
+}

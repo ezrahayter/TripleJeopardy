@@ -40,8 +40,9 @@ export function Nav({
 
       <nav className="nav">
         <NavLink to="/" end>
-          Posts
+          Calendar
         </NavLink>
+        <NavLink to="/posts">Posts</NavLink>
         <NavLink to="/compose">Compose</NavLink>
         <NavLink to="/accounts">Accounts</NavLink>
         <NavLink to="/settings">Settings</NavLink>

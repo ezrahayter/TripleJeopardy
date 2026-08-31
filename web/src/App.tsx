@@ -5,6 +5,7 @@ import { useWorkspace } from './lib/useWorkspace';
 import { Nav } from './components/Nav';
 import { Login } from './pages/Login';
 import { Bootstrap } from './pages/Bootstrap';
+import { Calendar } from './pages/Calendar';
 import { Posts } from './pages/Posts';
 import { Compose } from './pages/Compose';
 import { Accounts } from './pages/Accounts';
@@ -44,7 +45,8 @@ function AuthedApp({ userId }: { userId: string }) {
         onNew={() => setCreating(true)}
       />
       <Routes>
-        <Route path="/" element={<Posts key={orgId} orgId={orgId} />} />
+        <Route path="/" element={<Calendar key={orgId} orgId={orgId} />} />
+        <Route path="/posts" element={<Posts key={orgId} orgId={orgId} />} />
         <Route
           path="/compose"
           element={<Compose key={orgId} orgId={orgId} campaigns={ws.campaigns} />}

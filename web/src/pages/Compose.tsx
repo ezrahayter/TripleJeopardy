@@ -1,17 +1,26 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { blueskyAdapter } from '@shared/adapters';
 import type { Campaign } from '@shared/types';
 
 const BLUESKY_LIMIT = 300;
 
+function isoToLocalInput(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campaign[] }) {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [campaignId, setCampaignId] = useState(campaigns[0]?.id ?? '');
   const [body, setBody] = useState('');
   const [files, setFiles] = useState<File[]>([]);
-  const [scheduleAt, setScheduleAt] = useState('');
+  const [scheduleAt, setScheduleAt] = useState(() => isoToLocalInput(params.get('at')));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
