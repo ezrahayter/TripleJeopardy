@@ -3,14 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { StatusChip } from '../components/StatusChip';
 import { PostThumbs } from '../components/PostThumbs';
-import type { PostStatus } from '@shared/types';
+import { ApprovalPanel } from '../components/ApprovalPanel';
+import type { ApprovalState, Campaign, PostStatus } from '@shared/types';
+
+const SELECT =
+  'id, body, status, approval_state, scheduled_at, campaign:campaigns(id, name, approval_mode, approver_name)';
 
 interface CalPost {
   id: string;
   body: string;
   status: PostStatus;
+  approval_state: ApprovalState;
   scheduled_at: string | null;
-  campaign: { name: string } | null;
+  campaign: {
+    id: string;
+    name: string;
+    approval_mode: Campaign['approval_mode'];
+    approver_name: string | null;
+  } | null;
 }
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -36,8 +46,13 @@ export function Calendar({ orgId }: { orgId: string }) {
   const [posts, setPosts] = useState<CalPost[]>([]);
   const [drafts, setDrafts] = useState<CalPost[]>([]);
   const [showDrafts, setShowDrafts] = useState(false);
-  const [selected, setSelected] = useState<CalPost | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const selected = useMemo(
+    () => [...posts, ...drafts].find((p) => p.id === selectedId) ?? null,
+    [posts, drafts, selectedId],
+  );
 
   const cells = useMemo(() => {
     const start = startOfMonth(month);
@@ -56,7 +71,7 @@ export function Calendar({ orgId }: { orgId: string }) {
 
     const { data, error } = await supabase
       .from('posts')
-      .select('id, body, status, scheduled_at, campaign:campaigns(name)')
+      .select(SELECT)
       .eq('org_id', orgId)
       .not('scheduled_at', 'is', null)
       .gte('scheduled_at', gridStart.toISOString())
@@ -71,7 +86,7 @@ export function Calendar({ orgId }: { orgId: string }) {
 
     const { data: draftRows } = await supabase
       .from('posts')
-      .select('id, body, status, scheduled_at, campaign:campaigns(name)')
+      .select(SELECT)
       .eq('org_id', orgId)
       .is('scheduled_at', null)
       .eq('status', 'draft')
@@ -136,7 +151,7 @@ export function Calendar({ orgId }: { orgId: string }) {
                   key={d.id}
                   type="button"
                   className="draft-row"
-                  onClick={() => setSelected(d)}
+                  onClick={() => setSelectedId(d.id)}
                 >
                   <strong>{d.campaign?.name ?? '—'}</strong>{' '}
                   {d.body ? d.body.slice(0, 80) : '(no text)'}
@@ -172,7 +187,7 @@ export function Calendar({ orgId }: { orgId: string }) {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelected(p);
+                      setSelectedId(p.id);
                     }}
                   >
                     <span className="txt">
@@ -189,9 +204,10 @@ export function Calendar({ orgId }: { orgId: string }) {
       {selected && (
         <PostModal
           post={selected}
-          onClose={() => setSelected(null)}
+          onClose={() => setSelectedId(null)}
+          onReload={load}
           onChanged={() => {
-            setSelected(null);
+            setSelectedId(null);
             void load();
           }}
         />
@@ -203,10 +219,12 @@ export function Calendar({ orgId }: { orgId: string }) {
 function PostModal({
   post,
   onClose,
+  onReload,
   onChanged,
 }: {
   post: CalPost;
   onClose: () => void;
+  onReload: () => Promise<void>;
   onChanged: () => void;
 }) {
   const navigate = useNavigate();
@@ -234,6 +252,21 @@ function PostModal({
         </div>
         <p className="body">{post.body || <span className="muted">(no text)</span>}</p>
         <PostThumbs postId={post.id} />
+
+        {post.campaign && (
+          <ApprovalPanel
+            post={{
+              id: post.id,
+              campaign_id: post.campaign.id,
+              approval_state: post.approval_state,
+            }}
+            campaign={{
+              approval_mode: post.campaign.approval_mode,
+              approver_name: post.campaign.approver_name,
+            }}
+            onChange={() => void onReload()}
+          />
+        )}
 
         {error && <p className="notice error">{error}</p>}
 

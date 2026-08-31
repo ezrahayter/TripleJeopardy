@@ -27,6 +27,9 @@ export interface Org {
   created_at: string;
 }
 
+export type ApprovalMode = 'candidate' | 'designated' | 'waived';
+export type ApprovalState = 'not_required' | 'pending' | 'changes_requested' | 'approved';
+
 export interface Campaign {
   id: string;
   org_id: string;
@@ -35,6 +38,9 @@ export interface Campaign {
   jurisdiction: string | null;
   election_date: string | null;
   timezone: string;
+  approval_mode: ApprovalMode;
+  approver_name: string | null;
+  approver_email: string | null;
   created_at: string;
 }
 
@@ -59,9 +65,19 @@ export interface Post {
   campaign_id: string;
   body: string;
   status: PostStatus;
+  approval_state: ApprovalState;
   scheduled_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ApprovalEvent {
+  id: string;
+  post_id: string;
+  event: 'sent_for_review' | 'approved' | 'changes_requested' | 'reset';
+  actor: string | null;
+  note: string | null;
+  created_at: string;
 }
 
 export interface PostMedia {

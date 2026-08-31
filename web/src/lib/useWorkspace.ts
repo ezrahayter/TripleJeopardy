@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Campaign, Org } from '@shared/types';
+import type { ApprovalMode, Campaign, Org } from '@shared/types';
 import { supabase } from './supabase';
 
 const STORAGE_KEY = 'tj.currentOrg';
@@ -24,6 +24,10 @@ interface WorkspaceState {
   addCampaign: (name: string) => Promise<void>;
   renameCampaign: (id: string, name: string) => Promise<void>;
   deleteCampaign: (id: string) => Promise<void>;
+  updateCampaignApproval: (
+    id: string,
+    v: { approval_mode: ApprovalMode; approver_name: string | null; approver_email: string | null },
+  ) => Promise<void>;
   reload: () => Promise<void>;
 }
 
@@ -151,6 +155,22 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
     [org, loadCampaigns],
   );
 
+  const updateCampaignApproval = useCallback<WorkspaceState['updateCampaignApproval']>(
+    async (id, v) => {
+      const { error } = await supabase
+        .from('campaigns')
+        .update({
+          approval_mode: v.approval_mode,
+          approver_name: v.approver_name?.trim() || null,
+          approver_email: v.approver_email?.trim() || null,
+        })
+        .eq('id', id);
+      if (error) throw error;
+      if (org) await loadCampaigns(org.id);
+    },
+    [org, loadCampaigns],
+  );
+
   const reload = useCallback(async () => {
     await loadOrgs();
     if (org) await loadCampaigns(org.id);
@@ -168,6 +188,7 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
     addCampaign,
     renameCampaign,
     deleteCampaign,
+    updateCampaignApproval,
     reload,
   };
 }

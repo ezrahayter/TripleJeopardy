@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Campaign, Org } from '@shared/types';
+import type { ApprovalMode, Campaign, Org } from '@shared/types';
+import { CampaignApproval } from '../components/CampaignApproval';
 
 interface Props {
   org: Org;
@@ -10,6 +11,10 @@ interface Props {
   onAddCampaign: (name: string) => Promise<void>;
   onRenameCampaign: (id: string, name: string) => Promise<void>;
   onDeleteCampaign: (id: string) => Promise<void>;
+  onUpdateApproval: (
+    id: string,
+    v: { approval_mode: ApprovalMode; approver_name: string | null; approver_email: string | null },
+  ) => Promise<void>;
 }
 
 export function Settings({
@@ -20,6 +25,7 @@ export function Settings({
   onAddCampaign,
   onRenameCampaign,
   onDeleteCampaign,
+  onUpdateApproval,
 }: Props) {
   const navigate = useNavigate();
   const [name, setName] = useState(org.name);
@@ -137,6 +143,9 @@ export function Settings({
                 Delete
               </button>
             </div>
+          )}
+          {editingId !== c.id && (
+            <CampaignApproval campaign={c} onSave={(v) => onUpdateApproval(c.id, v)} />
           )}
         </div>
       ))}

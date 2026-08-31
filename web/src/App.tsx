@@ -10,6 +10,7 @@ import { Posts } from './pages/Posts';
 import { Compose } from './pages/Compose';
 import { Accounts } from './pages/Accounts';
 import { Settings } from './pages/Settings';
+import { Review } from './pages/Review';
 
 function AuthedApp({ userId }: { userId: string }) {
   const ws = useWorkspace(userId);
@@ -45,22 +46,22 @@ function AuthedApp({ userId }: { userId: string }) {
         onNew={() => setCreating(true)}
       />
       <Routes>
-        <Route path="/" element={<Calendar key={orgId} orgId={orgId} />} />
-        <Route path="/posts" element={<Posts key={orgId} orgId={orgId} />} />
+        <Route index element={<Calendar key={orgId} orgId={orgId} />} />
+        <Route path="posts" element={<Posts key={orgId} orgId={orgId} />} />
         <Route
-          path="/compose"
+          path="compose"
           element={<Compose key={orgId} orgId={orgId} campaigns={ws.campaigns} />}
         />
         <Route
-          path="/compose/:id"
+          path="compose/:id"
           element={<Compose orgId={orgId} campaigns={ws.campaigns} />}
         />
         <Route
-          path="/accounts"
+          path="accounts"
           element={<Accounts key={orgId} orgId={orgId} campaigns={ws.campaigns} />}
         />
         <Route
-          path="/settings"
+          path="settings"
           element={
             <Settings
               key={orgId}
@@ -71,6 +72,7 @@ function AuthedApp({ userId }: { userId: string }) {
               onAddCampaign={ws.addCampaign}
               onRenameCampaign={ws.renameCampaign}
               onDeleteCampaign={ws.deleteCampaign}
+              onUpdateApproval={ws.updateCampaignApproval}
             />
           }
         />
@@ -87,7 +89,13 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      {session ? <AuthedApp userId={session.user.id} /> : <Login />}
+      <Routes>
+        <Route path="/review/:token" element={<Review />} />
+        <Route
+          path="/*"
+          element={session ? <AuthedApp userId={session.user.id} /> : <Login />}
+        />
+      </Routes>
     </BrowserRouter>
   );
 }

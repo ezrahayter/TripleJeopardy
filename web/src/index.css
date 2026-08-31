@@ -239,6 +239,58 @@ textarea {
   margin: 14px 0;
   font-size: 0.95rem;
 }
+
+.appr-chip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border: 1px solid var(--rule-strong);
+  color: var(--olive);
+}
+.appr-chip[data-appr='pending'] {
+  border-color: var(--coral);
+  color: var(--coral);
+}
+.appr-chip[data-appr='changes_requested'] {
+  border-color: var(--brick);
+  color: var(--brick);
+}
+.appr-chip[data-appr='approved'] {
+  background: var(--ink);
+  color: var(--bone);
+  border-color: var(--ink);
+}
+
+/* ---------- review page (no login) ---------- */
+.review-wrap {
+  max-width: 520px;
+  margin: 40px auto 80px;
+  padding: 0 20px;
+}
+.review-card {
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  padding: 16px;
+  margin: 16px 0;
+}
+.review-media {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.review-media img {
+  max-width: 100%;
+  border: 1px solid var(--rule);
+}
+.review-body {
+  white-space: pre-wrap;
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
 .error {
   border-left-color: var(--brick);
   color: var(--brick);

@@ -26,6 +26,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const [params] = useSearchParams();
 
   const [loaded, setLoaded] = useState(!editId);
+  const [origApproval, setOrigApproval] = useState<string>('not_required');
   const [campaignId, setCampaignId] = useState(campaigns[0]?.id ?? '');
   const [body, setBody] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -66,7 +67,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
     void (async () => {
       const { data, error } = await supabase
         .from('posts')
-        .select('body, status, campaign_id, scheduled_at')
+        .select('body, status, approval_state, campaign_id, scheduled_at')
         .eq('id', editId)
         .single();
       if (error || !data) {
@@ -77,6 +78,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       setBody(data.body ?? '');
       setCampaignId(data.campaign_id as string);
       setScheduleAt(isoToLocalInput(data.scheduled_at as string | null));
+      setOrigApproval((data.approval_state as string) ?? 'not_required');
       void (data.status as PostStatus);
       await loadExistingMedia(editId);
       setLoaded(true);
@@ -137,6 +139,10 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
           .update({ body, campaign_id: campaignId })
           .eq('id', editId);
         if (error) throw error;
+        // content changed after it was sent/approved -> reset sign-off
+        if (origApproval !== 'not_required') {
+          await supabase.rpc('tj_reset_approval', { p_post_id: editId });
+        }
       } else {
         const { data, error } = await supabase
           .from('posts')

@@ -3,10 +3,18 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { StatusChip } from '../components/StatusChip';
 import { PostThumbs } from '../components/PostThumbs';
-import type { Post, PostTarget } from '@shared/types';
+import { ApprovalPanel } from '../components/ApprovalPanel';
+import type { Campaign, Post, PostTarget } from '@shared/types';
 
 type Row = Post & {
-  campaign: { name: string } | null;
+  campaign:
+    | {
+        id: string;
+        name: string;
+        approval_mode: Campaign['approval_mode'];
+        approver_name: string | null;
+      }
+    | null;
   post_targets: Array<Pick<PostTarget, 'status' | 'external_url' | 'error'>>;
 };
 
@@ -19,7 +27,9 @@ export function Posts({ orgId }: { orgId: string }) {
     setLoading(true);
     const { data, error } = await supabase
       .from('posts')
-      .select('*, campaign:campaigns(name), post_targets(status, external_url, error)')
+      .select(
+        '*, campaign:campaigns(id, name, approval_mode, approver_name), post_targets(status, external_url, error)',
+      )
       .eq('org_id', orgId)
       .order('created_at', { ascending: false });
     setLoading(false);
@@ -79,6 +89,17 @@ export function Posts({ orgId }: { orgId: string }) {
               {t.error && <> · {t.error}</>}
             </div>
           ))}
+
+          {row.campaign && row.status !== 'published' && (
+            <ApprovalPanel
+              post={{ id: row.id, campaign_id: row.campaign.id, approval_state: row.approval_state }}
+              campaign={{
+                approval_mode: row.campaign.approval_mode,
+                approver_name: row.campaign.approver_name,
+              }}
+              onChange={() => void load()}
+            />
+          )}
 
           {row.status !== 'published' && (
             <div className="btnrow">
