@@ -81,7 +81,7 @@ export function Privacy() {
         To disconnect a social account, use the <strong>Accounts</strong> screen in the app — this
         deletes the stored credential immediately. To delete a campaign or an entire workspace and
         everything in it, use <strong>Settings</strong>. To request deletion of any remaining data,
-        email <a href="mailto:privacy@positiveforce.us">privacy@positiveforce.us</a> and we will
+        email <a href="mailto:ezra@positiveforce.win">ezra@positiveforce.win</a> and we will
         remove it within 30 days.
       </p>
 
@@ -95,7 +95,7 @@ export function Privacy() {
       <h2>Contact</h2>
       <p>
         Positive Force —{' '}
-        <a href="mailto:privacy@positiveforce.us">privacy@positiveforce.us</a>
+        <a href="mailto:ezra@positiveforce.win">ezra@positiveforce.win</a>
       </p>
     </div>
   );
