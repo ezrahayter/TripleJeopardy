@@ -154,7 +154,9 @@ Status: **✅ done · 🔜 next · P1–P4 planned phase · 💤 maybe later**
 | Media library | Sprout, Later | P2 |
 | Basic image crop / aspect presets | Buffer, Later | P2 |
 | Video support (validate + passthrough) | Later | P2 |
-| Canva integration | Later, Buffer | 💤 |
+| Manual Canva export → upload (Download PNG in Canva, then attach) | — | ✅ works today |
+| Canva Connect API — browse your Canva designs/folders in-app and import one into a post (needs a Canva dev account + API-access approval + OAuth) | Later, Buffer | P2 |
+| "Share to Triple Jeopardy" button inside Canva (build + publish a Canva marketplace app, Canva review) | Buffer, Later | P3 |
 | Alt-text fields | Later, Buffer | P2 (Bluesky ✅) |
 
 ## 11. Platform & delivery
