@@ -3,6 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2024-11-11"
 compatibility_flags = ["nodejs_compat"]
 
+# Cron-only worker - no public HTTP route in production. The /run endpoint is
+# for local dev; flip this to true and register a workers.dev subdomain if you
+# want a manual trigger in prod too.
+workers_dev = false
+
 [dev]
 port = 8787
 

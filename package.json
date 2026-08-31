@@ -5,11 +5,13 @@
   "description": "Triple Jeopardy - social publishing with campaign sign-off. A Positive Force FL tool. Phase 0 skeleton.",
   "scripts": {
     "install:all": "npm install && npm install --prefix shared && npm install --prefix web && npm install --prefix worker",
-    "dev": "npm run dev --prefix web",
+    "dev": "concurrently -k -n web,worker,tick -c cyan,magenta,gray \"npm run dev --prefix web\" \"npm run dev --prefix worker\" \"node scripts/dev-tick.mjs\"",
+    "dev:web": "npm run dev --prefix web",
     "dev:worker": "npm run dev --prefix worker",
     "typecheck": "npm run typecheck --prefix shared && npm run typecheck --prefix web && npm run typecheck --prefix worker"
   },
   "devDependencies": {
+    "concurrently": "^10.0.5",
     "supabase": "^2.116.0"
   }
 }
