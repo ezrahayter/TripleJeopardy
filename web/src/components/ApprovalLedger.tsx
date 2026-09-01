@@ -31,11 +31,11 @@ export function ApprovalLedger({
     approval_mode: ApprovalMode;
     approver_name: string | null;
     waived_networks?: string[];
+    review_token?: string;
   };
   onChange: () => void;
 }) {
   const [events, setEvents] = useState<ApprovalEvent[]>([]);
-  const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -47,15 +47,6 @@ export function ApprovalLedger({
       .eq('post_id', post.id)
       .order('created_at', { ascending: true });
     setEvents((ev as unknown as ApprovalEvent[]) ?? []);
-    const { data: link } = await supabase
-      .from('review_links')
-      .select('token')
-      .eq('post_id', post.id)
-      .is('decided_at', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setToken((link?.token as string) ?? null);
   }, [post.id]);
 
   useEffect(() => {
@@ -71,24 +62,24 @@ export function ApprovalLedger({
   }
 
   const waived = campaign.waived_networks ?? [];
-  const reviewUrl = token ? `${window.location.origin}/review/${token}` : null;
+  const portalUrl = campaign.review_token
+    ? `${window.location.origin}/review/${campaign.review_token}`
+    : null;
   const canSend =
     post.approval_state === 'not_required' || post.approval_state === 'changes_requested';
 
   async function sendForReview() {
     setBusy(true);
     setErr(null);
-    const { data: link, error } = await supabase
-      .from('review_links')
-      .insert({ post_id: post.id, campaign_id: post.campaign_id })
-      .select('token')
-      .single();
-    if (error || !link) {
-      setErr(error?.message ?? 'Could not create a review link.');
+    const { error } = await supabase
+      .from('posts')
+      .update({ approval_state: 'pending' })
+      .eq('id', post.id);
+    if (error) {
+      setErr(error.message);
       setBusy(false);
       return;
     }
-    await supabase.from('posts').update({ approval_state: 'pending' }).eq('id', post.id);
     await supabase
       .from('approval_events')
       .insert({ post_id: post.id, event: 'sent_for_review', actor: 'operator' });
@@ -169,18 +160,24 @@ export function ApprovalLedger({
         </Button>
       )}
 
-      {post.approval_state === 'pending' && reviewUrl && (
-        <div className="space-y-1.5">
+      {portalUrl && (
+        <div className="space-y-1.5 border-t border-border pt-3">
           <p className="text-xs text-muted-foreground">
-            Send this link to {campaign.approver_name ?? 'the approver'} — no login needed.
+            {campaign.approver_name ?? 'The approver'} reviews every pending post at one link —
+            it stays the same:
           </p>
           <div className="flex gap-2">
-            <Input readOnly value={reviewUrl} onFocus={(e) => e.target.select()} className="text-xs" />
+            <Input
+              readOnly
+              value={portalUrl}
+              onFocus={(e) => e.target.select()}
+              className="text-xs"
+            />
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
-                void navigator.clipboard.writeText(reviewUrl);
+                void navigator.clipboard.writeText(portalUrl);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
               }}

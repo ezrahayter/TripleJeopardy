@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 import type { ApprovalMode, Campaign } from '@shared/types';
 import { ALL_NETWORKS, type NetworkId } from '@/lib/networks';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,23 @@ export function CampaignApproval({
   const [email, setEmail] = useState(campaign.approver_email ?? '');
   const [waived, setWaived] = useState<string[]>(campaign.waived_networks ?? []);
   const [disclaimer, setDisclaimer] = useState(campaign.disclaimer ?? '');
+  const [reviewToken, setReviewToken] = useState(campaign.review_token);
+  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const portalUrl = `${window.location.origin}/review/${reviewToken}`;
+
+  async function rotate() {
+    if (!window.confirm('Make a new link? The old one stops working immediately.')) return;
+    const { data, error } = await supabase.rpc('tj_rotate_review_token', {
+      p_campaign: campaign.id,
+    });
+    if (error) toast.error(error.message);
+    else {
+      setReviewToken(data as string);
+      toast.success('New review link generated');
+    }
+  }
 
   const summary =
     campaign.approval_mode === 'waived'
@@ -169,6 +186,39 @@ export function CampaignApproval({
               placeholder="Paid for by Rivera for HD 69."
             />
           </div>
+
+          {mode !== 'waived' && (
+            <div className="space-y-1.5 border-t border-border pt-3">
+              <Label>Approver link</Label>
+              <p className="text-xs text-muted-foreground">
+                One stable page for {name || 'the approver'} — every pending post, no login. Send it
+                once.
+              </p>
+              <div className="flex gap-2">
+                <Input readOnly value={portalUrl} onFocus={(e) => e.target.select()} className="text-xs" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(portalUrl);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                  }}
+                >
+                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                  {copied ? 'Copied' : 'Copy'}
+                </Button>
+              </div>
+              <button
+                type="button"
+                onClick={() => void rotate()}
+                className="dateline text-[color:var(--pf-brick)]"
+              >
+                Reset link
+              </button>
+            </div>
+          )}
 
           <Button size="sm" disabled={busy} onClick={() => void save()}>
             {busy ? 'Saving…' : 'Save campaign settings'}

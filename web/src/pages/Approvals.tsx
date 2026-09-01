@@ -7,11 +7,12 @@ import { Dateline } from '@/components/Dateline';
 import { CampaignAvatar } from '@/components/CampaignAvatar';
 import { ApprovalChip } from '@/components/StatusChip';
 import { ApprovalReport } from '@/components/ApprovalReport';
+import { PostRowMenu } from '@/components/PostRowMenu';
 import { PostDetailSheet, type DetailPost } from '@/components/PostDetailSheet';
 import { Button } from '@/components/ui/button';
 
 const SELECT =
-  'id, body, status, approval_state, scheduled_at, campaign:campaigns(id, name, approval_mode, approver_name, waived_networks)';
+  'id, body, status, approval_state, scheduled_at, campaign:campaigns(id, name, approval_mode, approver_name, waived_networks, review_token)';
 
 interface Row {
   id: string;
@@ -79,10 +80,15 @@ export function Approvals({ orgId }: { orgId: string }) {
       )}
 
       {changes.length > 0 && (
-        <Section title="Back with you" rows={changes} onOpen={setSelectedId} />
+        <Section title="Back with you" rows={changes} onOpen={setSelectedId} onChanged={load} />
       )}
       {waiting.length > 0 && (
-        <Section title="Waiting on the approver" rows={waiting} onOpen={setSelectedId} />
+        <Section
+          title="Waiting on the approver"
+          rows={waiting}
+          onOpen={setSelectedId}
+          onChanged={load}
+        />
       )}
 
       <PostDetailSheet
@@ -102,21 +108,22 @@ function Section({
   title,
   rows,
   onOpen,
+  onChanged,
 }: {
   title: string;
   rows: Row[];
   onOpen: (id: string) => void;
+  onChanged: () => void;
 }) {
   return (
     <div className="mb-6">
       <h2 className="dateline mb-2">{title}</h2>
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         {rows.map((row) => (
-          <button
-            type="button"
+          <div
             key={row.id}
             onClick={() => onOpen(row.id)}
-            className="flex w-full items-center gap-3 border-b border-border p-4 text-left last:border-b-0 hover:bg-background"
+            className="flex w-full cursor-pointer items-center gap-3 border-b border-border p-4 text-left last:border-b-0 hover:bg-background"
           >
             <CampaignAvatar name={row.campaign?.name ?? '—'} size={32} />
             <span className="min-w-0 flex-1">
@@ -126,7 +133,8 @@ function Section({
               <Dateline campaign={row.campaign?.name} when={row.scheduled_at} />
             </span>
             <ApprovalChip state={row.approval_state} />
-          </button>
+            <PostRowMenu postId={row.id} onDone={onChanged} />
+          </div>
         ))}
       </div>
     </div>

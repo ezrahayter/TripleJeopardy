@@ -10,6 +10,7 @@ import { CampaignAvatar } from '@/components/CampaignAvatar';
 import { Dateline } from '@/components/Dateline';
 import { StatusChip, ApprovalChip } from '@/components/StatusChip';
 import { PostThumbs } from '@/components/PostThumbs';
+import { PostRowMenu } from '@/components/PostRowMenu';
 import { PostDetailSheet, type DetailPost } from '@/components/PostDetailSheet';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -53,7 +54,7 @@ export function Posts({ orgId }: { orgId: string }) {
     const { data, error } = await supabase
       .from('posts')
       .select(
-        '*, campaign:campaigns(id, name, approval_mode, approver_name, waived_networks), post_targets(status, external_url, error, social_account:social_accounts(network, handle))',
+        '*, campaign:campaigns(id, name, approval_mode, approver_name, waived_networks, review_token), post_targets(status, external_url, error, social_account:social_accounts(network, handle))',
       )
       .eq('org_id', orgId)
       .order('created_at', { ascending: false });
@@ -143,11 +144,10 @@ export function Posts({ orgId }: { orgId: string }) {
           const links = row.post_targets.filter((t) => t.external_url);
           const errs = row.post_targets.filter((t) => t.error);
           return (
-            <button
-              type="button"
+            <div
               key={row.id}
               onClick={() => setSelectedId(row.id)}
-              className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-input"
+              className="flex cursor-pointer flex-col gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-input"
             >
               <div className="flex items-center gap-2.5">
                 <CampaignAvatar name={row.campaign?.name ?? '—'} size={32} />
@@ -167,6 +167,9 @@ export function Posts({ orgId }: { orgId: string }) {
                   <StatusChip status={row.status} />
                 ) : (
                   <ApprovalChip state={row.approval_state} />
+                )}
+                {!published && (
+                  <PostRowMenu postId={row.id} onDone={() => void load()} />
                 )}
               </div>
 
@@ -205,7 +208,7 @@ export function Posts({ orgId }: { orgId: string }) {
                   <span className="dateline text-destructive">{errs.length} failed</span>
                 )}
               </div>
-            </button>
+            </div>
           );
         })}
       </div>

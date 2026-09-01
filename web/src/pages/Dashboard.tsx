@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const SELECT =
-  'id, body, status, approval_state, scheduled_at, campaign:campaigns(id, name, approval_mode, approver_name, waived_networks)';
+  'id, body, status, approval_state, scheduled_at, campaign:campaigns(id, name, approval_mode, approver_name, waived_networks, review_token)';
 
 interface Row {
   id: string;

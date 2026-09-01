@@ -43,6 +43,7 @@ export interface Campaign {
   approver_email: string | null;
   waived_networks: string[];
   disclaimer: string | null;
+  review_token: string;
   created_at: string;
 }
 

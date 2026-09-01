@@ -31,6 +31,7 @@ export interface DetailPost {
     approval_mode: ApprovalMode;
     approver_name: string | null;
     waived_networks?: string[];
+    review_token?: string;
   } | null;
 }
 
@@ -115,6 +116,7 @@ export function PostDetailSheet({
                     approval_mode: post.campaign.approval_mode,
                     approver_name: post.campaign.approver_name,
                     waived_networks: post.campaign.waived_networks ?? [],
+                    review_token: post.campaign.review_token,
                   }}
                   onChange={() => void onReload()}
                 />
