@@ -19,7 +19,6 @@ const Compose = lazy(() => import('./pages/Compose').then((m) => ({ default: m.C
 const Accounts = lazy(() => import('./pages/Accounts').then((m) => ({ default: m.Accounts })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Review = lazy(() => import('./pages/Review').then((m) => ({ default: m.Review })));
-const Privacy = lazy(() => import('./pages/Privacy').then((m) => ({ default: m.Privacy })));
 
 function AuthedApp({ user }: { user: User }) {
   const ws = useWorkspace(user.id);
@@ -121,7 +120,8 @@ export default function App() {
         <Suspense fallback={<CenteredNote>Loading…</CenteredNote>}>
           <Routes>
             <Route path="/review/:token" element={<Review />} />
-            <Route path="/privacy" element={<Privacy />} />
+            {/* /privacy is served as a static, crawlable file (web/public/privacy.html)
+                via _redirects — Meta's crawler doesn't run JS. */}
             <Route
               path="/*"
               element={session ? <AuthedApp user={session.user} /> : <Login />}
