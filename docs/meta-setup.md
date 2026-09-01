@@ -1,119 +1,114 @@
-# Connecting Facebook / Instagram / Threads
+# Meta setup — step by step
 
-Meta App Review (weeks) only gates use by the **general public**. An app in
-**Development mode** works fully for anyone with a **Tester** role. So: add each
-candidate as a tester now, run App Review in parallel for later.
+Replace `APPID` in the links with your app's numeric ID once you have it
+(it's in the dashboard URL: `developers.facebook.com/apps/APPID/...`).
 
-Redirect URI used everywhere below:
-```
-https://zompyktytkwyueedshzk.supabase.co/functions/v1/oauth-callback
-```
+Two values that go everywhere:
+- Redirect URI: `https://zompyktytkwyueedshzk.supabase.co/functions/v1/oauth-callback`
+- Privacy / data-deletion URL: `https://triple-jeopardy.pages.dev/privacy`
 
 ---
 
-## Part A — Configure the app (once)
+## Part 1 — Get a developer account (past the SMS wall)
 
-At **developers.facebook.com → My Apps → [your app]**:
+1. Log into your personal account at <https://www.facebook.com>.
+2. **Settings → Personal and account information → Contact info → Add mobile
+   number.** Confirm the code. (This SMS path works even when the developer one
+   doesn't.)
+3. Go to <https://developers.facebook.com/> → **Get Started** (top right). With
+   the phone already verified on the account it should skip the SMS and just ask
+   you to accept the terms and pick "Developer."
 
-### 1. App settings → Basic
-- **Show** the **App Secret**. Copy the **App ID** and **App Secret**.
-- **App Domains**: `zompyktytkwyueedshzk.supabase.co` (add your Pages domain too if you get one)
-- **Privacy Policy URL**: required. Host a privacy policy page somewhere public and
-  put its URL here. (A Notion page, a Pages route, anything reachable.)
-- **Category**: "Business and Pages" or similar.
+If it still demands an SMS the number is probably VoIP / Google Voice / prepaid —
+Meta blocks those. Use a postpaid carrier line.
 
-### 2. Facebook Login for Business → Settings (left sidebar)
-- **Valid OAuth Redirect URIs**: add the redirect URI above.
-- **Client OAuth Login**: On. **Web OAuth Login**: On.
+Alternative: have a teammate with a working dev account create the app and add
+you as an **Admin** (Part 5). The app doesn't have to be owned by your account.
 
-### 3. Use case: "Authenticate and request data… with Facebook Login" → Customize
-Request these permissions (they show as **Standard Access** — fine for testers):
-- `pages_show_list`
-- `pages_read_engagement`
-- `pages_manage_posts`
-- `business_management`
-- `instagram_basic`
-- `instagram_content_publish`
+## Part 2 — Create the app
 
-### 4. Add the Threads use case
-- Use cases → **Add use case → "Access the Threads API"**
-- In its **Settings**, add the same redirect URI.
-- Request `threads_basic`, `threads_content_publish`.
+Skip if you already have one.
 
-### 5. Put the credentials into Triple Jeopardy
+1. <https://developers.facebook.com/apps/> → **Create app**
+2. Use case: **Authenticate and request data from users with Facebook Login** → Next
+3. Name `Triple Jeopardy`, contact `ezra@positiveforce.win`, business portfolio
+   optional → **Create app** (re-enter your FB password)
+4. Note the **App ID** — the number in the dashboard URL and on Basic Settings.
+
+## Part 3 — Configure
+
+**A. Basic settings** — `developers.facebook.com/apps/APPID/settings/basic/`
+- Show the **App secret**; copy it and the **App ID**
+- **App domains** → `zompyktytkwyueedshzk.supabase.co`
+- **Privacy policy URL** → `https://triple-jeopardy.pages.dev/privacy`
+- **User data deletion** → "Data deletion instructions URL" → same URL
+- **Category** → Business and Pages
+- **Save changes**
+
+**B. Facebook Login settings** — `developers.facebook.com/apps/APPID/fb-login/settings/`
+- **Valid OAuth Redirect URIs** → add the redirect URI
+- Client OAuth Login: Yes · Web OAuth Login: Yes
+- **Save changes**
+
+**C. Threads** — `developers.facebook.com/apps/APPID/use_cases/`
+- **Add use case → Access the Threads API**
+- Its **Settings** → **Redirect Callback URLs** → add the redirect URI
+
+**D. Permissions** — `developers.facebook.com/apps/APPID/app-review/permissions/`
+- Confirm these show **Standard Access** (default — do NOT request Advanced yet):
+  `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`,
+  `business_management`, `instagram_basic`, `instagram_content_publish`
+
+## Part 4 — Sandbox to test against (not the candidate's account)
+
+1. <https://www.facebook.com/pages/create> → a junk Page ("TJ Sandbox").
+2. A throwaway Instagram account → its Settings → **Switch to professional
+   account → Business** → connect it to the TJ Sandbox Page.
+
+Do all dev testing here. Connect the candidate's real Page/IG only at launch.
+
+## Part 5 — Add a tester
+
+`developers.facebook.com/apps/APPID/roles/roles/`
+- **Testers → Add testers** → your Facebook username → Submit
+- Accept: <https://www.facebook.com/settings?tab=business_tools>
+
+## Part 6 — Wire into Triple Jeopardy
+
 ```bash
-# Supabase (for the oauth-start / oauth-callback functions)
 cd triple-jeopardy
 npx supabase secrets set META_APP_ID="..." META_APP_SECRET="..." PUBLIC_APP_URL="https://triple-jeopardy.pages.dev"
 npx supabase functions deploy oauth-start
 npx supabase functions deploy oauth-callback
 
-# Cloudflare worker (for the nightly Meta token-refresh sweep)
 cd worker
 npx wrangler secret put META_APP_ID
 npx wrangler secret put META_APP_SECRET
 npx wrangler deploy
 ```
 
----
+Then: Accounts tab → **Connect Facebook / Instagram** → authorize → pick the
+TJ Sandbox Page → it should land back connected.
 
-## Part B — Add a tester (per candidate)
+## Part 7 — Business verification (start now, weeks-long)
 
-The candidate must already be an **admin of the Facebook Page**, and their
-**Instagram account must be Business or Creator** and **linked to that Page**
-(Page Settings → Linked accounts, or the IG app → Settings → *Switch to
-professional account* if it's still personal).
+Only needed for App Review / going public. <https://business.facebook.com> →
+create a Business Portfolio → link it to the app (Basic settings) → **Security
+Center → Start Verification** → submit business docs.
 
-1. Meta app → **App Roles → Roles**
-2. Scroll to **Testers** → **Add Testers**
-3. Enter their **Facebook username** or the **email on their Facebook account**
-4. They accept: a notification appears, or **facebook.com/settings → Business
-   Integrations** → accept the invite. Two minutes, one time.
-5. Now they can run the **Connect Facebook / Instagram** flow in Triple Jeopardy
-   (Accounts tab) and it will work — no App Review.
+## Part 8 — App Review (only for non-tester clients, later)
 
-Threads: check whether the Threads use case has its own tester list in its
-Settings. Usually the app-tester role covers it; add them there too if prompted.
-
----
-
-## Part C — Business verification (start now, runs for days–weeks)
-
-Needed for going live (Advanced Access), higher rate limits, some features.
-Not needed for tester publishing, but the clock is long so start it.
-
-1. **business.facebook.com** — create a **Business Portfolio** for Positive Force
-   if you don't have one.
-2. Meta app → **App settings → Basic → Business Portfolio** → select it.
-3. **business.facebook.com → Business Settings → Security Center** →
-   **Start Verification**.
-4. Provide legal business name, address, phone, and a verification document —
-   business registration, business license, a utility bill, tax document, or
-   bank statement showing the business name + address. Sole proprietor: a
-   government-issued business doc works.
-5. Meta reviews — usually a few days.
-
----
-
-## Part D — App Review (only when onboarding non-tester clients)
-
-Meta app → **App Review → Permissions and Features** → request **Advanced
-Access** for each permission. You'll need:
-- a screencast of the full flow (log in → connect a Page → schedule → publish)
-- the hosted privacy policy
-- business verification complete
-
-Review takes ~1–4 weeks.
+`developers.facebook.com/apps/APPID/app-review/permissions/` → request Advanced
+Access. Needs: a screencast of the full flow, the privacy policy, business
+verification complete. ~1–4 weeks.
 
 ---
 
 ## Gotchas
 
-- **Instagram won't appear** if the IG account is personal, or not linked to a
-  Page the candidate admins.
-- **`pages_manage_posts` missing** → re-run the connect flow; the candidate must
-  tick the Page checkbox in Meta's authorize dialog.
-- Meta long-lived tokens last ~60 days. The worker's nightly sweep refreshes
-  them; if a candidate's connection goes stale, reconnect from the Accounts tab.
-- The `oauth-callback` and `review` functions are `verify_jwt = false` — that's
-  intentional (Meta and reviewers hit them with no Supabase session).
+- Instagram won't appear if the IG account is personal or not linked to a Page
+  you admin.
+- `pages_manage_posts` missing after connect → re-run the flow, tick the Page
+  checkbox in Meta's dialog.
+- Meta long-lived tokens last ~60 days; the worker's nightly sweep refreshes
+  them. Stale connection → reconnect from the Accounts tab.
