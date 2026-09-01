@@ -5,6 +5,7 @@ import { Check, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { PostRequestMedia } from '@shared/types';
 import type { RequestRow } from '@/pages/Requests';
+import { NETWORK_LABEL } from '@/lib/format';
 import { Dateline } from '@/components/Dateline';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -215,7 +216,9 @@ export function RequestDetailSheet({
           )}
           {request.reference?.trim() && <Row label="Reference">{request.reference}</Row>}
           {request.platforms.length > 0 && (
-            <Row label="Platforms">{request.platforms.join(', ')}</Row>
+            <Row label="Platforms">
+              {request.platforms.map((p) => NETWORK_LABEL[p] ?? p).join(', ')}
+            </Row>
           )}
           {request.tied_to_event && (
             <Row label="Event">

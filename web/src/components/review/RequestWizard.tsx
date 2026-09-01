@@ -120,7 +120,10 @@ export function RequestWizard({
       [k]: p[k].includes(v) ? p[k].filter((x) => x !== v) : [...p[k], v],
     }));
 
-  const platformOpts = networks.length ? networks : (Object.keys(NETWORKS) as NetworkId[]);
+  // every network is pickable — even ones the app can't publish to yet, so the
+  // request can still be planned and scheduled. Connected ones get a live dot.
+  const platformOpts = Object.keys(NETWORKS) as NetworkId[];
+  const connected = new Set(networks);
 
   // steps shown depend on the "tied to an event" answer
   const steps = useMemo(
@@ -409,12 +412,39 @@ export function RequestWizard({
             />
           </Field>
           <Field label="Platforms">
-            <ChipGroup
-              options={platformOpts}
-              labels={(id) => NETWORKS[id as NetworkId]?.label ?? id}
-              selected={d.platforms}
-              onToggle={(v) => toggle('platforms', v)}
-            />
+            <div className="flex flex-wrap gap-2">
+              {platformOpts.map((id) => {
+                const meta = NETWORKS[id];
+                const Icon = meta.icon;
+                const on = d.platforms.includes(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => toggle('platforms', id)}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors',
+                      on
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-input bg-background text-muted-foreground hover:border-muted-foreground',
+                    )}
+                  >
+                    <Icon className="size-3.5" />
+                    {meta.label}
+                    {connected.has(id) && (
+                      <span
+                        className="size-1.5 rounded-full bg-[color:var(--pf-olive)]"
+                        title="Connected — publishes automatically"
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              A green dot means it's connected and posts automatically. The rest are still tracked
+              and scheduled — someone posts them by hand for now.
+            </p>
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Planned publish day">

@@ -12,7 +12,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { cors, jsonResponse as json } from '../_shared/cors.ts';
 
-const FALLBACK_NETWORKS = ['instagram', 'facebook', 'tiktok', 'youtube', 'bluesky'];
 const TEXT_CAP = 4000;
 
 function clampText(v: unknown, cap = TEXT_CAP): string | null {
@@ -48,14 +47,15 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     if (!campaign) return json({ error: 'This review link is not valid.' }, 404);
 
-    async function activeNetworks(): Promise<string[]> {
+    // the campaign's connected networks — the request wizard shows every
+    // platform regardless, and marks these as auto-publishing
+    async function connectedNetworks(): Promise<string[]> {
       const { data } = await admin
         .from('social_accounts')
         .select('network')
         .eq('campaign_id', campaign.id)
         .eq('status', 'active');
-      const found = [...new Set((data ?? []).map((r) => r.network as string))];
-      return found.length ? found : FALLBACK_NETWORKS;
+      return [...new Set((data ?? []).map((r) => r.network as string))];
     }
 
     async function withMedia(posts: { id: string; body: string; scheduled_at: string | null }[]) {
@@ -118,7 +118,7 @@ Deno.serve(async (req: Request) => {
         campaign: campaign.name,
         reviewer: campaign.approver_name ?? null,
         requestsEnabled: campaign.requests_enabled !== false,
-        networks: await activeNetworks(),
+        networks: await connectedNetworks(),
         pending: await loadPending(),
         recent: await loadRecent(),
       });
