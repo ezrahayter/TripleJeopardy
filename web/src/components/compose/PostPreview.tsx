@@ -68,11 +68,15 @@ export function PostPreview({
   networks,
   accounts,
   text,
+  overrides = {},
+  firstComment = '',
   mediaUrls,
 }: {
   networks: NetworkId[];
   accounts: Record<string, PreviewAccount | undefined>;
   text: string;
+  overrides?: Record<string, string>;
+  firstComment?: string;
   mediaUrls: string[];
 }) {
   const [active, setActive] = useState<NetworkId | null>(null);
@@ -96,8 +100,9 @@ export function PostPreview({
   }
 
   const meta = NETWORKS[current];
-  const over = countGraphemes(text) > meta.limit;
-  const shown = over ? [...text].slice(0, meta.limit).join('') : text;
+  const effective = overrides[current]?.trim() || text;
+  const over = countGraphemes(effective) > meta.limit;
+  const shown = over ? [...effective].slice(0, meta.limit).join('') : effective;
   const photo = meta.family === 'photo';
 
   return (
@@ -153,7 +158,7 @@ export function PostPreview({
           <MediaGrid urls={mediaUrls} square />
         )}
 
-        {text.trim() && (
+        {effective.trim() && (
           <p className="whitespace-pre-wrap px-3 py-2.5 text-[14px] leading-relaxed">
             {highlight(shown)}
             {over && <span className="text-[#999]">… more</span>}
@@ -176,6 +181,20 @@ export function PostPreview({
             <Send className="ml-auto size-[18px]" />
           )}
         </div>
+
+        {firstComment.trim() && (
+          <div className="flex gap-2 border-t border-[#eee] px-3 py-2.5">
+            <span
+              className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-semibold text-white"
+              style={{ background: meta.color }}
+            >
+              {acct.name.slice(0, 1).toUpperCase()}
+            </span>
+            <p className="whitespace-pre-wrap text-[13px] leading-snug text-[#333]">
+              {highlight(firstComment)}
+            </p>
+          </div>
+        )}
       </div>
 
       <p className="mt-2 text-center text-xs text-muted-foreground">

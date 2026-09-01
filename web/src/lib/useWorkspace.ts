@@ -39,7 +39,13 @@ interface WorkspaceState {
   deleteCampaign: (id: string) => Promise<void>;
   updateCampaignApproval: (
     id: string,
-    v: { approval_mode: ApprovalMode; approver_name: string | null; approver_email: string | null },
+    v: {
+      approval_mode: ApprovalMode;
+      approver_name: string | null;
+      approver_email: string | null;
+      waived_networks: string[];
+      disclaimer: string | null;
+    },
   ) => Promise<void>;
   listTeam: (orgId: string) => Promise<{ members: Member[]; invites: Invite[] }>;
   inviteMember: (orgId: string, email: string, role: string) => Promise<void>;
@@ -182,6 +188,8 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
           approval_mode: v.approval_mode,
           approver_name: v.approver_name?.trim() || null,
           approver_email: v.approver_email?.trim() || null,
+          waived_networks: v.waived_networks,
+          disclaimer: v.disclaimer?.trim() || null,
         })
         .eq('id', id);
       if (error) throw error;

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
+  BarChart3,
   CalendarDays,
   CheckCircle2,
   LayoutDashboard,
@@ -31,6 +32,7 @@ const NAV = [
   { to: '/posts', label: 'Posts', icon: ListChecks },
   { to: '/compose', label: 'Compose', icon: PenLine },
   { to: '/approvals', label: 'Approvals', icon: CheckCircle2 },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/accounts', label: 'Accounts', icon: Plug },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ];

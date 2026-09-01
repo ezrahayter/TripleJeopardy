@@ -2,8 +2,10 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { ApprovalMode, Campaign, Org } from '@shared/types';
+import { FileText } from 'lucide-react';
 import { CampaignApproval } from '@/components/CampaignApproval';
 import { TeamSection } from '@/components/TeamSection';
+import { ApprovalReport } from '@/components/ApprovalReport';
 import type { Invite, Member } from '@/lib/useWorkspace';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -22,7 +24,13 @@ interface Props {
   onDeleteCampaign: (id: string) => Promise<void>;
   onUpdateApproval: (
     id: string,
-    v: { approval_mode: ApprovalMode; approver_name: string | null; approver_email: string | null },
+    v: {
+      approval_mode: ApprovalMode;
+      approver_name: string | null;
+      approver_email: string | null;
+      waived_networks: string[];
+      disclaimer: string | null;
+    },
   ) => Promise<void>;
   listTeam: (orgId: string) => Promise<{ members: Member[]; invites: Invite[] }>;
   inviteMember: (orgId: string, email: string, role: string) => Promise<void>;
@@ -49,6 +57,7 @@ export function Settings({
   const [name, setName] = useState(org.name);
   const [confirm, setConfirm] = useState('');
   const [newCampaign, setNewCampaign] = useState('');
+  const [reportFor, setReportFor] = useState<Campaign | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -67,6 +76,14 @@ export function Settings({
 
   return (
     <>
+      {reportFor && (
+        <ApprovalReport
+          orgId={org.id}
+          campaignId={reportFor.id}
+          campaignName={reportFor.name}
+          onClose={() => setReportFor(null)}
+        />
+      )}
       <PageHeader title="Workspace settings" />
 
       <form
@@ -133,6 +150,9 @@ export function Settings({
             ) : (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="flex-1 font-medium">{c.name}</span>
+                <Button variant="ghost" size="sm" onClick={() => setReportFor(c)}>
+                  <FileText className="size-4" /> Record
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"

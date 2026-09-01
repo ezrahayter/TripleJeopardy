@@ -53,7 +53,7 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
     .from('post_targets')
     .select(
       `id,
-       post:posts ( id, body ),
+       post:posts ( id, body, body_overrides ),
        account:social_accounts ( network, handle, service_url, external_id, meta, secret_ciphertext )`,
     )
     .eq('id', job.post_target_id)
@@ -100,6 +100,10 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
   const secret = await decryptSecret(account.secret_ciphertext, env.TJ_ENCRYPTION_KEY);
   const adapter = getAdapter(account.network);
 
+  // a per-network text override wins over the shared body
+  const overrides = (post.body_overrides ?? {}) as Record<string, string>;
+  const body = overrides[account.network]?.trim() || post.body || '';
+
   const result = await adapter.publish({
     account: {
       handle: account.handle,
@@ -108,7 +112,7 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
       meta: account.meta ?? null,
     },
     secret,
-    body: post.body ?? '',
+    body,
     media,
   });
 

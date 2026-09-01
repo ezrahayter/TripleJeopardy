@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
 import type { Campaign, PostStatus } from '@shared/types';
 import {
   ALL_NETWORKS,
@@ -56,11 +58,23 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
     Array<{ network: string; handle: string; meta: Record<string, unknown> }>
   >([]);
   const [selected, setSelected] = useState<NetworkId[]>(ALL_IDS);
+  const [firstComment, setFirstComment] = useState('');
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
+  const [overridesOpen, setOverridesOpen] = useState(false);
+  const [useDisclaimer, setUseDisclaimer] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const totalImages = existing.length + files.length;
   const hasAccounts = accounts.length > 0;
+  const campaign = campaigns.find((c) => c.id === campaignId);
+  const disclaimer = campaign?.disclaimer?.trim() ?? '';
+
+  /** body as it will be saved — disclaimer appended once, if opted in */
+  const finalBody = useMemo(() => {
+    if (!useDisclaimer || !disclaimer) return body;
+    return body.includes(disclaimer) ? body : `${body.trimEnd()}\n\n${disclaimer}`;
+  }, [body, useDisclaimer, disclaimer]);
 
   const available: NetworkId[] = useMemo(() => {
     const connected = [...new Set(accounts.map((a) => a.network))].filter((n): n is NetworkId =>
@@ -92,7 +106,8 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   );
 
   const activeSelected = selected.filter((s) => available.includes(s));
-  const overLimit = activeSelected.filter((id) => countGraphemes(body) > NETWORKS[id].limit);
+  const textFor = (id: NetworkId) => overrides[id]?.trim() || finalBody;
+  const overLimit = activeSelected.filter((id) => countGraphemes(textFor(id)) > NETWORKS[id].limit);
 
   const loadExistingMedia = useCallback(async (postId: string) => {
     const { data: rows } = await supabase
@@ -121,7 +136,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
     void (async () => {
       const { data, error } = await supabase
         .from('posts')
-        .select('body, status, approval_state, campaign_id, scheduled_at')
+        .select('body, status, approval_state, campaign_id, scheduled_at, first_comment, body_overrides')
         .eq('id', editId)
         .single();
       if (error || !data) {
@@ -130,6 +145,11 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
         return;
       }
       setBody(data.body ?? '');
+      setFirstComment((data.first_comment as string) ?? '');
+      const ov = (data.body_overrides as Record<string, string>) ?? {};
+      setOverrides(ov);
+      if (Object.keys(ov).length > 0) setOverridesOpen(true);
+      setUseDisclaimer(false); // editing: don't silently re-append
       setCampaignId(data.campaign_id as string);
       const s = data.scheduled_at ? new Date(data.scheduled_at as string) : null;
       setScheduleAt(s && !Number.isNaN(s.getTime()) ? s : null);
@@ -217,14 +237,24 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       return;
     }
 
+    // keep only non-empty overrides for networks in play
+    const cleanOverrides: Record<string, string> = {};
+    for (const id of activeSelected) {
+      const v = overrides[id]?.trim();
+      if (v) cleanOverrides[id] = v;
+    }
+    const fields = {
+      body: finalBody,
+      campaign_id: campaignId,
+      first_comment: firstComment.trim() || null,
+      body_overrides: cleanOverrides,
+    };
+
     setBusy(true);
     try {
       let postId = editId ?? '';
       if (editId) {
-        const { error } = await supabase
-          .from('posts')
-          .update({ body, campaign_id: campaignId })
-          .eq('id', editId);
+        const { error } = await supabase.from('posts').update(fields).eq('id', editId);
         if (error) throw error;
         if (origApproval !== 'not_required') {
           await supabase.rpc('tj_reset_approval', { p_post_id: editId });
@@ -232,7 +262,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       } else {
         const { data, error } = await supabase
           .from('posts')
-          .insert({ org_id: orgId, campaign_id: campaignId, body, status: 'draft' })
+          .insert({ org_id: orgId, status: 'draft', ...fields })
           .select('id')
           .single();
         if (error || !data) throw error ?? new Error('could not create post');
@@ -330,6 +360,81 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
                 Over the limit for {overLimit.map((n) => NETWORKS[n].label).join(', ')}.
               </p>
             )}
+            {disclaimer && (
+              <label className="flex cursor-pointer items-start gap-2 pt-1 text-sm">
+                <input
+                  type="checkbox"
+                  checked={useDisclaimer}
+                  onChange={(e) => setUseDisclaimer(e.target.checked)}
+                  className="mt-0.5 accent-[color:var(--pf-coral)]"
+                />
+                <span>
+                  Append disclaimer
+                  <span className="dateline ml-2 normal-case">“{disclaimer}”</span>
+                </span>
+              </label>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <button
+              type="button"
+              onClick={() => setOverridesOpen((o) => !o)}
+              className="dateline flex items-center gap-1"
+            >
+              {overridesOpen ? (
+                <ChevronDown className="size-3" />
+              ) : (
+                <ChevronRight className="size-3" />
+              )}
+              Customize text per network
+              {Object.values(overrides).some(Boolean) && ' · edited'}
+            </button>
+            {overridesOpen && (
+              <div className="space-y-3 pt-1">
+                {activeSelected.map((id) => {
+                  const meta = NETWORKS[id];
+                  const val = overrides[id] ?? '';
+                  const count = countGraphemes(val || finalBody);
+                  return (
+                    <div key={id} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="dateline flex items-center gap-1.5">
+                          <meta.icon className="size-3.5" /> {meta.label}
+                        </span>
+                        <span
+                          className={cn(
+                            'dateline tabular-nums',
+                            count > meta.limit && '!text-destructive',
+                          )}
+                        >
+                          {count}/{meta.limit}
+                        </span>
+                      </div>
+                      <Textarea
+                        rows={2}
+                        value={val}
+                        onChange={(e) =>
+                          setOverrides((o) => ({ ...o, [id]: e.target.value }))
+                        }
+                        placeholder={`Uses the shared text unless you write a ${meta.label} version`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="first-comment">First comment</Label>
+            <Textarea
+              id="first-comment"
+              rows={2}
+              value={firstComment}
+              onChange={(e) => setFirstComment(e.target.value)}
+              placeholder="Posted as the first reply — links, sources, hashtags"
+            />
           </div>
 
           <div className="space-y-1.5">
@@ -375,7 +480,9 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
           <PostPreview
             networks={activeSelected}
             accounts={previewAccounts}
-            text={body}
+            text={finalBody}
+            overrides={overrides}
+            firstComment={firstComment}
             mediaUrls={mediaUrls}
           />
         </div>

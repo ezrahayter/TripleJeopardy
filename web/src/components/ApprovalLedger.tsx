@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { ApprovalEvent, ApprovalMode, ApprovalState } from '@shared/types';
+import { NETWORKS, type NetworkId } from '@/lib/networks';
 import { ApprovalChip } from '@/components/StatusChip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +27,11 @@ export function ApprovalLedger({
   onChange,
 }: {
   post: { id: string; campaign_id: string; approval_state: ApprovalState };
-  campaign: { approval_mode: ApprovalMode; approver_name: string | null };
+  campaign: {
+    approval_mode: ApprovalMode;
+    approver_name: string | null;
+    waived_networks?: string[];
+  };
   onChange: () => void;
 }) {
   const [events, setEvents] = useState<ApprovalEvent[]>([]);
@@ -65,6 +70,7 @@ export function ApprovalLedger({
     );
   }
 
+  const waived = campaign.waived_networks ?? [];
   const reviewUrl = token ? `${window.location.origin}/review/${token}` : null;
   const canSend =
     post.approval_state === 'not_required' || post.approval_state === 'changes_requested';
@@ -99,6 +105,13 @@ export function ApprovalLedger({
           <span className="text-xs text-muted-foreground">{campaign.approver_name}</span>
         )}
       </div>
+
+      {waived.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {waived.map((n) => NETWORKS[n as NetworkId]?.label ?? n).join(' and ')} publish without
+          sign-off — approval here covers the other networks.
+        </p>
+      )}
 
       {err && <p className="text-sm text-destructive">{err}</p>}
 

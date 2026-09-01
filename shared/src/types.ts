@@ -41,6 +41,8 @@ export interface Campaign {
   approval_mode: ApprovalMode;
   approver_name: string | null;
   approver_email: string | null;
+  waived_networks: string[];
+  disclaimer: string | null;
   created_at: string;
 }
 
@@ -67,6 +69,8 @@ export interface Post {
   status: PostStatus;
   approval_state: ApprovalState;
   scheduled_at: string | null;
+  first_comment: string | null;
+  body_overrides: Record<string, string>;
   created_at: string;
   updated_at: string;
 }

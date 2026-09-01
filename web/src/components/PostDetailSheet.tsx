@@ -30,6 +30,7 @@ export interface DetailPost {
     name: string;
     approval_mode: ApprovalMode;
     approver_name: string | null;
+    waived_networks?: string[];
   } | null;
 }
 
@@ -113,6 +114,7 @@ export function PostDetailSheet({
                   campaign={{
                     approval_mode: post.campaign.approval_mode,
                     approver_name: post.campaign.approver_name,
+                    waived_networks: post.campaign.waived_networks ?? [],
                   }}
                   onChange={() => void onReload()}
                 />

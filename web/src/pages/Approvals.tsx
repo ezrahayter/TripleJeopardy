@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FileText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { ApprovalMode, ApprovalState, PostStatus } from '@shared/types';
 import { PageHeader } from '@/components/PageHeader';
 import { Dateline } from '@/components/Dateline';
 import { CampaignAvatar } from '@/components/CampaignAvatar';
 import { ApprovalChip } from '@/components/StatusChip';
+import { ApprovalReport } from '@/components/ApprovalReport';
 import { PostDetailSheet, type DetailPost } from '@/components/PostDetailSheet';
+import { Button } from '@/components/ui/button';
 
 const SELECT =
-  'id, body, status, approval_state, scheduled_at, campaign:campaigns(id, name, approval_mode, approver_name)';
+  'id, body, status, approval_state, scheduled_at, campaign:campaigns(id, name, approval_mode, approver_name, waived_networks)';
 
 interface Row {
   id: string;
@@ -28,6 +31,7 @@ export function Approvals({ orgId }: { orgId: string }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [report, setReport] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,7 +62,14 @@ export function Approvals({ orgId }: { orgId: string }) {
       <PageHeader
         title="Approvals"
         description="Posts in the sign-off track — waiting on an approver or back with you for changes."
+        action={
+          <Button variant="outline" onClick={() => setReport(true)}>
+            <FileText className="size-4" /> Export record
+          </Button>
+        }
       />
+
+      {report && <ApprovalReport orgId={orgId} onClose={() => setReport(false)} />}
 
       {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
       {!loading && rows.length === 0 && (

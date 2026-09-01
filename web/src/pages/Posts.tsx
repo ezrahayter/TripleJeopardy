@@ -53,7 +53,7 @@ export function Posts({ orgId }: { orgId: string }) {
     const { data, error } = await supabase
       .from('posts')
       .select(
-        '*, campaign:campaigns(id, name, approval_mode, approver_name), post_targets(status, external_url, error, social_account:social_accounts(network, handle))',
+        '*, campaign:campaigns(id, name, approval_mode, approver_name, waived_networks), post_targets(status, external_url, error, social_account:social_accounts(network, handle))',
       )
       .eq('org_id', orgId)
       .order('created_at', { ascending: false });

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { useAuth } from './lib/useAuth';
@@ -9,14 +9,16 @@ import { TooltipProvider } from './components/ui/tooltip';
 import { Login } from './pages/Login';
 import { Bootstrap } from './pages/Bootstrap';
 import { Dashboard } from './pages/Dashboard';
-import { Calendar } from './pages/Calendar';
-import { Posts } from './pages/Posts';
-import { Approvals } from './pages/Approvals';
-import { Compose } from './pages/Compose';
-import { Accounts } from './pages/Accounts';
-import { Settings } from './pages/Settings';
-import { Review } from './pages/Review';
-import { Privacy } from './pages/Privacy';
+
+const Calendar = lazy(() => import('./pages/Calendar').then((m) => ({ default: m.Calendar })));
+const Posts = lazy(() => import('./pages/Posts').then((m) => ({ default: m.Posts })));
+const Approvals = lazy(() => import('./pages/Approvals').then((m) => ({ default: m.Approvals })));
+const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
+const Compose = lazy(() => import('./pages/Compose').then((m) => ({ default: m.Compose })));
+const Accounts = lazy(() => import('./pages/Accounts').then((m) => ({ default: m.Accounts })));
+const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
+const Review = lazy(() => import('./pages/Review').then((m) => ({ default: m.Review })));
+const Privacy = lazy(() => import('./pages/Privacy').then((m) => ({ default: m.Privacy })));
 
 function AuthedApp({ user }: { user: User }) {
   const ws = useWorkspace(user.id);
@@ -51,11 +53,13 @@ function AuthedApp({ user }: { user: User }) {
       onNew={() => setCreating(true)}
       email={user.email ?? 'you'}
     >
+      <Suspense fallback={<CenteredNote>Loading…</CenteredNote>}>
       <Routes>
         <Route index element={<Dashboard key={orgId} orgId={orgId} />} />
         <Route path="calendar" element={<Calendar key={orgId} orgId={orgId} />} />
         <Route path="posts" element={<Posts key={orgId} orgId={orgId} />} />
         <Route path="approvals" element={<Approvals key={orgId} orgId={orgId} />} />
+        <Route path="analytics" element={<Analytics key={orgId} orgId={orgId} />} />
         <Route
           path="compose"
           element={<Compose key={orgId} orgId={orgId} campaigns={ws.campaigns} />}
@@ -91,6 +95,7 @@ function AuthedApp({ user }: { user: User }) {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </AppShell>
   );
 }
@@ -111,14 +116,16 @@ export default function App() {
   return (
     <BrowserRouter>
       <TooltipProvider delayDuration={200}>
-        <Routes>
-          <Route path="/review/:token" element={<Review />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route
-            path="/*"
-            element={session ? <AuthedApp user={session.user} /> : <Login />}
-          />
-        </Routes>
+        <Suspense fallback={<CenteredNote>Loading…</CenteredNote>}>
+          <Routes>
+            <Route path="/review/:token" element={<Review />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route
+              path="/*"
+              element={session ? <AuthedApp user={session.user} /> : <Login />}
+            />
+          </Routes>
+        </Suspense>
         <Toaster position="bottom-right" />
       </TooltipProvider>
     </BrowserRouter>

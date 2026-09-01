@@ -15,4 +15,26 @@ export default defineConfig({
     // allow importing @shared from outside the web/ root during dev
     fs: { allow: ['..', '../..'] },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom', 'react-router'],
+          supabase: ['@supabase/supabase-js'],
+          'date-fns': ['date-fns'],
+          'lucide-react': ['lucide-react'],
+          radix: ['radix-ui', '@radix-ui/react-use-controllable-state', 'cmdk'],
+          'day-picker': ['react-day-picker'],
+          'dnd-kit': [
+            '@dnd-kit/core',
+            '@dnd-kit/modifiers',
+            '@dnd-kit/sortable',
+            '@dnd-kit/utilities',
+          ],
+          // media-chrome (kibo-ui/video-player) is vendored but not yet imported
+          // anywhere; add `'media-chrome': ['media-chrome']` here once it is.
+        },
+      },
+    },
+  },
 });
