@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Check, MessageSquare } from 'lucide-react';
+import { Check, MessageSquare, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { RequestWizard } from '@/components/review/RequestWizard';
 
 interface PendingPost {
   id: string;
@@ -20,6 +21,8 @@ interface RecentItem {
 interface Data {
   campaign: string;
   reviewer: string | null;
+  requestsEnabled: boolean;
+  networks: string[];
   pending: PendingPost[];
   recent: RecentItem[];
   error?: string;
@@ -46,6 +49,7 @@ export function Review() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [showRecent, setShowRecent] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
   const loadFn = useCallback(async () => {
     try {
@@ -86,19 +90,48 @@ export function Review() {
 
       {data && (
         <>
-          <h1 className="text-2xl font-black tracking-tight">Posts to review</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {data.campaign}
-            {data.reviewer ? ` · ${data.reviewer}` : ''} · {data.pending.length} waiting
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-black tracking-tight">Posts to review</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {data.campaign}
+                {data.reviewer ? ` · ${data.reviewer}` : ''} · {data.pending.length} waiting
+              </p>
+            </div>
+            {data.requestsEnabled && !requesting && (
+              <Button variant="outline" size="sm" onClick={() => setRequesting(true)}>
+                <Plus className="size-4" /> Request a post
+              </Button>
+            )}
+          </div>
 
-          {data.pending.length === 0 ? (
+          {requesting ? (
+            <div className="mt-6">
+              <RequestWizard
+                fnUrl={FN}
+                token={token!}
+                headers={headers}
+                networks={data.networks ?? []}
+                reviewer={data.reviewer}
+                onCancel={() => setRequesting(false)}
+                onDone={() => {
+                  setRequesting(false);
+                  void loadFn();
+                }}
+              />
+            </div>
+          ) : data.pending.length === 0 ? (
             <div className="mt-8 rounded-xl border border-dashed border-border p-10 text-center">
               <Check className="mx-auto size-6 text-[color:var(--pf-olive)]" />
               <p className="mt-2 text-sm text-muted-foreground">
                 You're all caught up. Check back when there's something new — this link stays the
                 same.
               </p>
+              {data.requestsEnabled && (
+                <Button variant="action" className="mt-4" onClick={() => setRequesting(true)}>
+                  <Plus className="size-4" /> Request a post
+                </Button>
+              )}
             </div>
           ) : (
             <div className="mt-6 space-y-4">
@@ -108,7 +141,7 @@ export function Review() {
             </div>
           )}
 
-          {data.recent.length > 0 && (
+          {!requesting && data.recent.length > 0 && (
             <div className="mt-10">
               <button
                 type="button"

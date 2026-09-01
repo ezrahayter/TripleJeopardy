@@ -1,12 +1,30 @@
 // The candidate's review portal — one stable link per campaign, no login.
 //
 // GET  /functions/v1/review?token=<campaign.review_token>
-//        -> { campaign, reviewer, pending: [ {id, body, media, scheduled_at, note?} ], recent: [...] }
-// POST /functions/v1/review  { token, post_id, decision, note }
-//        -> { ok, pending: [...] }   (the decided post drops off the list)
+//        -> { campaign, reviewer, requestsEnabled, networks, pending: [...], recent: [...] }
+// POST /functions/v1/review  { token, post_id, decision, note }          (approve / send back)
+//        -> { ok, pending: [...] }
+// POST /functions/v1/review  { token, action: 'sign-upload', request_id, filename, kind }
+//        -> { path, token, signedUrl }   (client PUTs the file straight to signedUrl)
+// POST /functions/v1/review  { token, action: 'request', request: {...}, media: [{path,kind}] }
+//        -> { ok }
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { cors, jsonResponse as json } from '../_shared/cors.ts';
+
+const FALLBACK_NETWORKS = ['instagram', 'facebook', 'tiktok', 'youtube', 'bluesky'];
+const TEXT_CAP = 4000;
+
+function clampText(v: unknown, cap = TEXT_CAP): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t ? t.slice(0, cap) : null;
+}
+
+function safeName(v: unknown): string {
+  const base = typeof v === 'string' ? v : 'file';
+  return (base.split('/').pop() ?? 'file').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || 'file';
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -25,10 +43,20 @@ Deno.serve(async (req: Request) => {
 
     const { data: campaign } = await admin
       .from('campaigns')
-      .select('id, name, approver_name, waived_networks')
+      .select('id, org_id, name, approver_name, waived_networks, requests_enabled')
       .eq('review_token', token)
       .maybeSingle();
     if (!campaign) return json({ error: 'This review link is not valid.' }, 404);
+
+    async function activeNetworks(): Promise<string[]> {
+      const { data } = await admin
+        .from('social_accounts')
+        .select('network')
+        .eq('campaign_id', campaign.id)
+        .eq('status', 'active');
+      const found = [...new Set((data ?? []).map((r) => r.network as string))];
+      return found.length ? found : FALLBACK_NETWORKS;
+    }
 
     async function withMedia(posts: { id: string; body: string; scheduled_at: string | null }[]) {
       const out = [];
@@ -89,12 +117,99 @@ Deno.serve(async (req: Request) => {
       return json({
         campaign: campaign.name,
         reviewer: campaign.approver_name ?? null,
+        requestsEnabled: campaign.requests_enabled !== false,
+        networks: await activeNetworks(),
         pending: await loadPending(),
         recent: await loadRecent(),
       });
     }
 
     if (req.method === 'POST') {
+      const action = bodyJson.action ?? 'decide';
+
+      // ── candidate uploads a file for a request ──────────────────
+      if (action === 'sign-upload') {
+        const requestId = String(bodyJson.request_id ?? '');
+        if (!/^[0-9a-f-]{36}$/i.test(requestId)) return json({ error: 'Bad request_id' }, 400);
+        const kind = bodyJson.kind === 'resource' ? 'resource' : 'media';
+        const path =
+          `${campaign.id}/requests/${requestId}/${kind}-${crypto.randomUUID()}-${safeName(bodyJson.filename)}`;
+        const { data, error } = await admin.storage.from('media').createSignedUploadUrl(path);
+        if (error) return json({ error: error.message }, 400);
+        return json({ path, token: data.token, signedUrl: data.signedUrl });
+      }
+
+      // ── candidate submits a post request ───────────────────────
+      if (action === 'request') {
+        if (campaign.requests_enabled === false) {
+          return json({ error: 'This campaign is not taking requests right now.' }, 409);
+        }
+        const r = (bodyJson.request ?? {}) as Record<string, unknown>;
+        const requestId = String(bodyJson.request_id ?? r.id ?? '');
+        if (!/^[0-9a-f-]{36}$/i.test(requestId)) return json({ error: 'Bad request id' }, 400);
+
+        const caption = clampText(r.caption);
+        const exactWording = clampText(r.exact_wording);
+        const notes = clampText(r.notes);
+        if (!caption && !exactWording && !notes) {
+          return json({ error: 'Add a caption, exact wording, or a note so we know what to make.' }, 400);
+        }
+
+        const kinds = Array.isArray(r.request_kinds)
+          ? r.request_kinds.filter((x): x is string => typeof x === 'string').slice(0, 20)
+          : [];
+        const platforms = Array.isArray(r.platforms)
+          ? r.platforms.filter((x): x is string => typeof x === 'string').slice(0, 20)
+          : [];
+        const photosVideo = ['have', 'coming_soon', 'none'].includes(r.photos_video as string)
+          ? (r.photos_video as string)
+          : null;
+        const isDate = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+
+        const { error: insErr } = await admin.from('post_requests').insert({
+          id: requestId,
+          org_id: campaign.org_id,
+          campaign_id: campaign.id,
+          submitter_email: clampText(r.submitter_email, 320),
+          request_kinds: kinds,
+          content_type: clampText(r.content_type, 120),
+          tied_to_event: r.tied_to_event === true,
+          event_date: isDate(r.event_date),
+          event_time: clampText(r.event_time, 120),
+          event_location: clampText(r.event_location, 500),
+          rsvp_link: clampText(r.rsvp_link, 1000),
+          photos_video: photosVideo,
+          exact_wording: exactWording,
+          caption,
+          reference: clampText(r.reference, 2000),
+          notes,
+          platforms,
+          planned_publish: isDate(r.planned_publish),
+          needs_submitter_approval: r.needs_submitter_approval === true,
+          draft_lead: clampText(r.draft_lead, 120),
+        });
+        if (insErr) return json({ error: insErr.message }, 400);
+
+        const media = Array.isArray(bodyJson.media) ? bodyJson.media.slice(0, 10) : [];
+        const rows = media
+          .filter((m: unknown): m is { path: string; kind?: string } =>
+            !!m && typeof (m as { path?: unknown }).path === 'string' &&
+            (m as { path: string }).path.startsWith(`${campaign.id}/requests/${requestId}/`))
+          .map((m: { path: string; kind?: string }, i: number) => ({
+            request_id: requestId,
+            storage_path: m.path,
+            kind: m.kind === 'resource' ? 'resource' : 'media',
+            sort: i,
+          }));
+        if (rows.length) {
+          const { error: mErr } = await admin.from('post_request_media').insert(rows);
+          if (mErr) return json({ error: mErr.message }, 400);
+        }
+
+        return json({ ok: true });
+      }
+
+      // ── approve / send back (unchanged) ────────────────────────
       const { post_id, decision, note } = bodyJson;
       if (decision !== 'approved' && decision !== 'changes_requested') {
         return json({ error: "decision must be 'approved' or 'changes_requested'" }, 400);

@@ -13,6 +13,7 @@ import { Dashboard } from './pages/Dashboard';
 const Calendar = lazy(() => import('./pages/Calendar').then((m) => ({ default: m.Calendar })));
 const Posts = lazy(() => import('./pages/Posts').then((m) => ({ default: m.Posts })));
 const Approvals = lazy(() => import('./pages/Approvals').then((m) => ({ default: m.Approvals })));
+const Requests = lazy(() => import('./pages/Requests').then((m) => ({ default: m.Requests })));
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
 const Compose = lazy(() => import('./pages/Compose').then((m) => ({ default: m.Compose })));
 const Accounts = lazy(() => import('./pages/Accounts').then((m) => ({ default: m.Accounts })));
@@ -59,6 +60,7 @@ function AuthedApp({ user }: { user: User }) {
         <Route path="calendar" element={<Calendar key={orgId} orgId={orgId} />} />
         <Route path="posts" element={<Posts key={orgId} orgId={orgId} />} />
         <Route path="approvals" element={<Approvals key={orgId} orgId={orgId} />} />
+        <Route path="requests" element={<Requests key={orgId} orgId={orgId} />} />
         <Route path="analytics" element={<Analytics key={orgId} orgId={orgId} />} />
         <Route
           path="compose"

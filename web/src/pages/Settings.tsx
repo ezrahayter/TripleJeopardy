@@ -30,6 +30,7 @@ interface Props {
       approver_email: string | null;
       waived_networks: string[];
       disclaimer: string | null;
+      requests_enabled: boolean;
     },
   ) => Promise<void>;
   listTeam: (orgId: string) => Promise<{ members: Member[]; invites: Invite[] }>;

@@ -34,6 +34,7 @@ export function CampaignApproval({
     approver_email: string | null;
     waived_networks: string[];
     disclaimer: string | null;
+    requests_enabled: boolean;
   }) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -42,6 +43,7 @@ export function CampaignApproval({
   const [email, setEmail] = useState(campaign.approver_email ?? '');
   const [waived, setWaived] = useState<string[]>(campaign.waived_networks ?? []);
   const [disclaimer, setDisclaimer] = useState(campaign.disclaimer ?? '');
+  const [requestsEnabled, setRequestsEnabled] = useState(campaign.requests_enabled !== false);
   const [reviewToken, setReviewToken] = useState(campaign.review_token);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -80,6 +82,7 @@ export function CampaignApproval({
         approver_email: mode === 'waived' ? null : email,
         waived_networks: mode === 'waived' ? [] : waived,
         disclaimer,
+        requests_enabled: requestsEnabled,
       });
       toast.success('Campaign settings saved');
       setOpen(false);
@@ -187,38 +190,59 @@ export function CampaignApproval({
             />
           </div>
 
-          {mode !== 'waived' && (
-            <div className="space-y-1.5 border-t border-border pt-3">
-              <Label>Approver link</Label>
-              <p className="text-xs text-muted-foreground">
-                One stable page for {name || 'the approver'} — every pending post, no login. Send it
-                once.
-              </p>
-              <div className="flex gap-2">
-                <Input readOnly value={portalUrl} onFocus={(e) => e.target.select()} className="text-xs" />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(portalUrl);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1500);
-                  }}
-                >
-                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                  {copied ? 'Copied' : 'Copy'}
-                </Button>
-              </div>
-              <button
-                type="button"
-                onClick={() => void rotate()}
-                className="dateline text-[color:var(--pf-brick)]"
+          <div className="space-y-2 border-t border-border pt-3">
+            <Label>Candidate portal</Label>
+            <p className="text-xs text-muted-foreground">
+              One stable page for {name || 'the candidate'} — no login. They approve every pending
+              post there, and{' '}
+              {requestsEnabled ? 'can also submit new post requests' : 'requests are turned off'}.
+            </p>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={requestsEnabled}
+              onClick={() => setRequestsEnabled((v) => !v)}
+              className={cn(
+                'flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs transition-colors',
+                requestsEnabled
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-input bg-card text-muted-foreground',
+              )}
+            >
+              <span
+                className={cn(
+                  'grid size-3.5 place-items-center rounded-full border',
+                  requestsEnabled ? 'border-primary-foreground' : 'border-muted-foreground',
+                )}
               >
-                Reset link
-              </button>
+                {requestsEnabled && <Check className="size-2.5" />}
+              </span>
+              Let the candidate request posts
+            </button>
+            <div className="flex gap-2 pt-1">
+              <Input readOnly value={portalUrl} onFocus={(e) => e.target.select()} className="text-xs" />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void navigator.clipboard.writeText(portalUrl);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                }}
+              >
+                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                {copied ? 'Copied' : 'Copy'}
+              </Button>
             </div>
-          )}
+            <button
+              type="button"
+              onClick={() => void rotate()}
+              className="dateline text-[color:var(--pf-brick)]"
+            >
+              Reset link
+            </button>
+          </div>
 
           <Button size="sm" disabled={busy} onClick={() => void save()}>
             {busy ? 'Saving…' : 'Save campaign settings'}

@@ -20,10 +20,22 @@ only). Runs on free tiers (~$12/yr domain the only cost).
 
 ## Status — 2026-09-01
 
+> **2026-09-01 update:** candidate **post requests** now ship in the same
+> `/review/<token>` portal — a 4-step wizard mirroring Ava's old Google Form
+> ("[client] Social Media Request"), with image upload. Requests land in a new
+> operator **Requests** inbox (`/requests`, nav item after Approvals); accepting
+> one spins up a draft post (body + copied media) and drops you in Compose.
+> New: migration `0012` (`post_requests`, `post_request_media`,
+> `campaigns.requests_enabled`); `review` Edge Function gained
+> `action:'sign-upload'` / `action:'request'` (redeploy it). The Google Form is
+> retired.
+
 ### Live
 - **web** → https://triple-jeopardy.pages.dev (Cloudflare Pages)
 - **worker** → deployed, cron `* * * * *` (the publisher)
 - **Supabase** ref `zompyktytkwyueedshzk`; migrations **0001–0011 applied**
+  (⬜ **0012** written, not yet pushed — run `npx supabase db push` +
+  `npx supabase functions deploy review`)
 - GitHub `git@github.com:ezrahayter/TripleJeopardy.git`
 
 ### Shipped
@@ -85,6 +97,8 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
 2. **Auto-email** (Resend free tier — already planned, was deferred):
    - post sent for review → email the candidate the portal link
    - candidate approves / requests changes → email Ava
+   - **candidate submits a post request → email Ava** (the Requests inbox is
+     silent today, same as approvals were)
    - currently silent, so Ava has to text the candidate every time
 3. **Bluesky metrics sync** — worker/edge step that pulls likes/reposts/replies
    into `post_targets` (add `metrics jsonb` + `metrics_synced_at`), so the
@@ -110,7 +124,9 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
   boost/paid-spend log for FEC, source-required posts, fundraising post type +
   goal thermometer + ActBlue/WinRed attribution, kill switch (pause all).
 - **Content sourcing:** RSS → drafts, evergreen recycling, bulk CSV upload,
-  draft-from-a-link, content idea inbox (client drops photos), request kanban.
+  draft-from-a-link. (Candidate request intake shipped 2026-09-01 — a full
+  kanban with the spreadsheet's Short-notice / Media-missing / Need-approval
+  columns is the remaining depth here.)
 - **Media:** media library, per-network aspect-ratio crop (Kibo `image-crop` is
   already vendored, unused), video passthrough, alt-text fields for all networks.
 - **AI:** caption gen/rewrite, tone adjustment, "feedback translator" (vague

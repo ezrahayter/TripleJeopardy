@@ -45,6 +45,7 @@ interface WorkspaceState {
       approver_email: string | null;
       waived_networks: string[];
       disclaimer: string | null;
+      requests_enabled: boolean;
     },
   ) => Promise<void>;
   listTeam: (orgId: string) => Promise<{ members: Member[]; invites: Invite[] }>;
@@ -190,6 +191,7 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
           approver_email: v.approver_email?.trim() || null,
           waived_networks: v.waived_networks,
           disclaimer: v.disclaimer?.trim() || null,
+          requests_enabled: v.requests_enabled,
         })
         .eq('id', id);
       if (error) throw error;

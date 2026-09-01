@@ -44,6 +44,7 @@ export interface Campaign {
   waived_networks: string[];
   disclaimer: string | null;
   review_token: string;
+  requests_enabled: boolean;
   created_at: string;
 }
 
@@ -90,6 +91,46 @@ export interface PostMedia {
   post_id: string;
   storage_path: string;
   alt_text: string;
+  sort: number;
+}
+
+export type RequestStatus = 'new' | 'accepted' | 'declined';
+
+/** A candidate's ask for content, submitted from the `/review/<token>` portal. */
+export interface PostRequest {
+  id: string;
+  org_id: string;
+  campaign_id: string;
+  submitter_email: string | null;
+  request_kinds: string[];
+  content_type: string | null;
+  tied_to_event: boolean;
+  event_date: string | null;
+  event_time: string | null;
+  event_location: string | null;
+  rsvp_link: string | null;
+  photos_video: 'have' | 'coming_soon' | 'none' | null;
+  exact_wording: string | null;
+  caption: string | null;
+  reference: string | null;
+  notes: string | null;
+  platforms: string[];
+  planned_publish: string | null;
+  needs_submitter_approval: boolean;
+  draft_lead: string | null;
+  status: RequestStatus;
+  decline_reason: string | null;
+  assigned_to: string | null;
+  created_post_id: string | null;
+  decided_at: string | null;
+  created_at: string;
+}
+
+export interface PostRequestMedia {
+  id: string;
+  request_id: string;
+  storage_path: string;
+  kind: 'resource' | 'media';
   sort: number;
 }
 
