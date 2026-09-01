@@ -1,19 +1,26 @@
 # Triple Jeopardy — working notes for Claude
 
 A social publishing tool for a freelance social manager who runs political
-**candidates'** feeds. A **Positive Force FL** internal tool. The wedge is the
-approval workflow: nothing posts until the campaign has signed off, and there's
-a timestamped receipt. Named after the Third World Women's Alliance newspaper
-(1971).
+**candidates'** feeds. A **Positive Force** internal tool (no "FL"). The wedge is
+the approval workflow: nothing posts until the campaign has signed off, and
+there's a timestamped receipt. Named after the Third World Women's Alliance
+newspaper (1971).
+
+**→ For current status and the roadmap, read [`ROADMAP.md`](ROADMAP.md).**
+This file's "Status" / "Next actions" / "Roadmap" sections below are stale
+(pre-everything); the architecture principles are still accurate.
 
 Full product scope: the "Triple Jeopardy" artifact
 (https://claude.ai/code/artifact/83162b30-b9ef-46f3-a591-4f71674cfae3).
 
 ## Stack
 
-- **web/** — Vite + React 18 + TS, on the Positive Force FL design tokens
-  (`web/src/styles/tokens.css` — Bone ground, Chivo, single committed light
-  theme). Magic-link auth, no router lib beyond react-router.
+- **web/** — Vite + React 19 + TS + Tailwind v4 + shadcn/ui (+ vendored Kibo UI).
+  Positive Force design tokens in `web/src/index.css` (`@theme`) — Bone ground,
+  Chivo display / Instrument Sans body / Chivo Mono metadata, single committed
+  light theme, Ink sidebar shell. Operators use **email + password**; magic
+  links are only the candidate's `/review/<campaign.review_token>` portal.
+  react-router, no other routing lib.
 - **worker/** — one Cloudflare Worker, cron `* * * * *`. The publisher. Job
   queue is a Postgres table, not Redis. Claims with `FOR UPDATE SKIP LOCKED`.
 - **shared/** — `NetworkAdapter` interface + adapters + AES-256-GCM crypto +
