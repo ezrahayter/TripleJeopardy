@@ -66,16 +66,21 @@ only). Runs on free tiers (~$12/yr domain the only cost).
 - Route-level code-splitting (main bundle ~289 KB / 89 KB gzip)
 
 ### Blocked — needs Ezra, not code
-- **Meta OAuth connect.** Last observed: the FB authorize dialog showed
-  *"Feature Unavailable — updating additional details for this app"* (Meta
-  re-indexing after a Basic-Settings change; usually clears in hours). **Retry:
-  Accounts → Connect Facebook / Instagram.** Until this works nothing reaches
-  FB/IG, and the Graph adapters (`shared/src/adapters/{facebook,instagram}.ts`)
-  have **never run against a live app** — expect field-name / permalink /
-  container-polling fixes once they do.
+- **Meta OAuth connect.** The *"Feature Unavailable — updating additional
+  details for this app"* limbo **cleared on 2026-09-01** (~36h; coincided with
+  making `/privacy` a static crawlable page — Meta's crawler can't run JS). The
+  FB authorize dialog now loads. **Next: run Accounts → Connect Facebook end to
+  end** (Continue → asset/Page selection → `oauth-callback` stores the token),
+  then a session debugging the Graph adapters
+  (`shared/src/adapters/{facebook,instagram}.ts`) against a sandbox Page — they
+  have **never run against a live app**, expect field-name / permalink /
+  container-polling fixes.
   - Meta app: "TripleJeopardy2", App ID `4393495657579660`. Development mode,
     Standard Access permissions (no App Review needed for testers/admins).
     Redirect URI: `https://zompyktytkwyueedshzk.supabase.co/functions/v1/oauth-callback`
+  - Note: the dialog renders as **"Facebook Login for Business"** — if Continue
+    doesn't lead to Page selection, the app may need a Login-for-Business
+    `config_id` instead of raw `scope=` in `_shared/meta.ts`.
   - See [`docs/meta-setup.md`](docs/meta-setup.md) for the full setup.
 - **Add Ava as a Meta tester** — `ava.weston.679808` via App roles → Testers.
   She hit the dev-registration SMS wall; the Business-Portfolio route (add her
