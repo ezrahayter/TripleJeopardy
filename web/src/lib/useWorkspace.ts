@@ -2,6 +2,19 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ApprovalMode, Campaign, Org } from '@shared/types';
 import { supabase } from './supabase';
 
+export interface Member {
+  user_id: string;
+  email: string;
+  role: string;
+  joined_at: string;
+}
+export interface Invite {
+  id: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
 const STORAGE_KEY = 'tj.currentOrg';
 
 function storedOrgId(): string | null {
@@ -28,6 +41,10 @@ interface WorkspaceState {
     id: string,
     v: { approval_mode: ApprovalMode; approver_name: string | null; approver_email: string | null },
   ) => Promise<void>;
+  listTeam: (orgId: string) => Promise<{ members: Member[]; invites: Invite[] }>;
+  inviteMember: (orgId: string, email: string, role: string) => Promise<void>;
+  removeMember: (orgId: string, userId: string) => Promise<void>;
+  cancelInvite: (inviteId: string) => Promise<void>;
   reload: () => Promise<void>;
 }
 
@@ -39,6 +56,8 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
 
   const loadOrgs = useCallback(async (): Promise<Org[]> => {
     if (!userId) return [];
+    // claim any workspace invites addressed to this email before listing
+    await supabase.rpc('tj_accept_invites');
     const { data } = await supabase
       .from('memberships')
       .select('org:orgs(*)')
@@ -171,6 +190,44 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
     [org, loadCampaigns],
   );
 
+  const listTeam = useCallback(async (orgId: string) => {
+    const [{ data: members, error: mErr }, { data: invites, error: iErr }] = await Promise.all([
+      supabase.rpc('tj_list_members', { p_org: orgId }),
+      supabase
+        .from('workspace_invites')
+        .select('id, email, role, created_at')
+        .eq('org_id', orgId)
+        .is('accepted_at', null)
+        .order('created_at'),
+    ]);
+    if (mErr) throw mErr;
+    if (iErr) throw iErr;
+    return {
+      members: (members as Member[]) ?? [],
+      invites: (invites as Invite[]) ?? [],
+    };
+  }, []);
+
+  const inviteMember = useCallback(async (orgId: string, email: string, role: string) => {
+    const { error } = await supabase.rpc('tj_invite_member', {
+      p_org: orgId,
+      p_email: email.trim(),
+      p_role: role,
+    });
+    if (error) throw error;
+    await loadOrgs();
+  }, [loadOrgs]);
+
+  const removeMember = useCallback(async (orgId: string, userId: string) => {
+    const { error } = await supabase.rpc('tj_remove_member', { p_org: orgId, p_user: userId });
+    if (error) throw error;
+  }, []);
+
+  const cancelInvite = useCallback(async (inviteId: string) => {
+    const { error } = await supabase.from('workspace_invites').delete().eq('id', inviteId);
+    if (error) throw error;
+  }, []);
+
   const reload = useCallback(async () => {
     await loadOrgs();
     if (org) await loadCampaigns(org.id);
@@ -189,6 +246,10 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
     renameCampaign,
     deleteCampaign,
     updateCampaignApproval,
+    listTeam,
+    inviteMember,
+    removeMember,
+    cancelInvite,
     reload,
   };
 }

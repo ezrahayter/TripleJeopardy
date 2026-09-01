@@ -2,10 +2,13 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ApprovalMode, Campaign, Org } from '@shared/types';
 import { CampaignApproval } from '../components/CampaignApproval';
+import { TeamSection } from '../components/TeamSection';
+import type { Invite, Member } from '../lib/useWorkspace';
 
 interface Props {
   org: Org;
   campaigns: Campaign[];
+  currentUserId: string;
   onRename: (id: string, name: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onAddCampaign: (name: string) => Promise<void>;
@@ -15,17 +18,26 @@ interface Props {
     id: string,
     v: { approval_mode: ApprovalMode; approver_name: string | null; approver_email: string | null },
   ) => Promise<void>;
+  listTeam: (orgId: string) => Promise<{ members: Member[]; invites: Invite[] }>;
+  inviteMember: (orgId: string, email: string, role: string) => Promise<void>;
+  removeMember: (orgId: string, userId: string) => Promise<void>;
+  cancelInvite: (inviteId: string) => Promise<void>;
 }
 
 export function Settings({
   org,
   campaigns,
+  currentUserId,
   onRename,
   onDelete,
   onAddCampaign,
   onRenameCampaign,
   onDeleteCampaign,
   onUpdateApproval,
+  listTeam,
+  inviteMember,
+  removeMember,
+  cancelInvite,
 }: Props) {
   const navigate = useNavigate();
   const [name, setName] = useState(org.name);
@@ -78,6 +90,17 @@ export function Settings({
           </button>
         </div>
       </form>
+
+      <hr style={{ border: 'none', borderTop: '1px solid var(--rule)', margin: '32px 0' }} />
+
+      <TeamSection
+        orgId={org.id}
+        currentUserId={currentUserId}
+        listTeam={listTeam}
+        inviteMember={inviteMember}
+        removeMember={removeMember}
+        cancelInvite={cancelInvite}
+      />
 
       <hr style={{ border: 'none', borderTop: '1px solid var(--rule)', margin: '32px 0' }} />
 

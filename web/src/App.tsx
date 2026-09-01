@@ -68,12 +68,17 @@ function AuthedApp({ userId }: { userId: string }) {
               key={orgId}
               org={ws.org}
               campaigns={ws.campaigns}
+              currentUserId={userId}
               onRename={ws.renameWorkspace}
               onDelete={ws.deleteWorkspace}
               onAddCampaign={ws.addCampaign}
               onRenameCampaign={ws.renameCampaign}
               onDeleteCampaign={ws.deleteCampaign}
               onUpdateApproval={ws.updateCampaignApproval}
+              listTeam={ws.listTeam}
+              inviteMember={ws.inviteMember}
+              removeMember={ws.removeMember}
+              cancelInvite={ws.cancelInvite}
             />
           }
         />
