@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { StatusChip } from '../components/StatusChip';
-import { PostThumbs } from '../components/PostThumbs';
-import { ApprovalPanel } from '../components/ApprovalPanel';
-import type { ApprovalState, Campaign, PostStatus } from '@shared/types';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import type { ApprovalState, ApprovalMode, PostStatus } from '@shared/types';
+import { PageHeader } from '@/components/PageHeader';
+import { PostDetailSheet, type DetailPost } from '@/components/PostDetailSheet';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const SELECT =
   'id, body, status, approval_state, scheduled_at, campaign:campaigns(id, name, approval_mode, approver_name)';
@@ -18,7 +20,7 @@ interface CalPost {
   campaign: {
     id: string;
     name: string;
-    approval_mode: Campaign['approval_mode'];
+    approval_mode: ApprovalMode;
     approver_name: string | null;
   } | null;
 }
@@ -33,23 +35,15 @@ const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
-function toLocalInput(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
 export function Calendar({ orgId }: { orgId: string }) {
   const navigate = useNavigate();
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [posts, setPosts] = useState<CalPost[]>([]);
   const [drafts, setDrafts] = useState<CalPost[]>([]);
-  const [showDrafts, setShowDrafts] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selected = useMemo(
+  const selected = useMemo<DetailPost | null>(
     () => [...posts, ...drafts].find((p) => p.id === selectedId) ?? null,
     [posts, drafts, selectedId],
   );
@@ -111,61 +105,56 @@ export function Calendar({ orgId }: { orgId: string }) {
 
   return (
     <>
-      <div className="cal-head">
-        <h1>
-          {MONTHS[month.getMonth()]} {month.getFullYear()}
-        </h1>
-        <div className="btnrow" style={{ marginTop: 0 }}>
-          <button className="btn secondary" type="button" onClick={() => shift(-1)}>
-            ‹
-          </button>
-          <button
-            className="btn secondary"
-            type="button"
-            onClick={() => setMonth(startOfMonth(new Date()))}
-          >
-            Today
-          </button>
-          <button className="btn secondary" type="button" onClick={() => shift(1)}>
-            ›
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={`${MONTHS[month.getMonth()]} ${month.getFullYear()}`}
+        description="Every scheduled and draft post for this workspace. Click a day to plan one."
+        action={
+          <>
+            <Button variant="outline" size="icon" aria-label="Previous month" onClick={() => shift(-1)}>
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button variant="outline" onClick={() => setMonth(startOfMonth(new Date()))}>
+              Today
+            </Button>
+            <Button variant="outline" size="icon" aria-label="Next month" onClick={() => shift(1)}>
+              <ChevronRight className="size-4" />
+            </Button>
+          </>
+        }
+      />
 
-      {error && <p className="notice error">{error}</p>}
+      {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
 
       {drafts.length > 0 && (
-        <div className="notice">
-          <button
-            type="button"
-            className="draft-toggle"
-            onClick={() => setShowDrafts((s) => !s)}
-          >
-            {showDrafts ? '▾' : '▸'} {drafts.length} unscheduled draft
-            {drafts.length > 1 ? 's' : ''}
-          </button>
-          {showDrafts && (
-            <div className="draft-list">
-              {drafts.map((d) => (
-                <button
-                  key={d.id}
-                  type="button"
-                  className="draft-row"
-                  onClick={() => setSelectedId(d.id)}
-                >
-                  <strong>{d.campaign?.name ?? '—'}</strong>{' '}
+        <div className="mb-4 rounded-lg border border-border bg-card p-3">
+          <div className="dateline mb-2">
+            {drafts.length} unscheduled draft{drafts.length > 1 ? 's' : ''}
+          </div>
+          <div className="flex flex-col gap-1">
+            {drafts.map((d) => (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => setSelectedId(d.id)}
+                className="truncate rounded-md border border-border bg-background px-2.5 py-1.5 text-left text-sm hover:border-input"
+              >
+                <span className="font-medium">{d.campaign?.name ?? '—'}</span>{' '}
+                <span className="text-muted-foreground">
                   {d.body ? d.body.slice(0, 80) : '(no text)'}
-                </button>
-              ))}
-            </div>
-          )}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      <div className="cal-scroll">
-        <div className="cal-grid">
+      <div className="overflow-x-auto">
+        <div className="grid min-w-[640px] grid-cols-7 overflow-hidden rounded-lg border border-border">
           {DOW.map((d) => (
-            <div className="cal-dow" key={d}>
+            <div
+              key={d}
+              className="dateline border-b border-border bg-card px-2 py-1.5"
+            >
               {d}
             </div>
           ))}
@@ -174,25 +163,43 @@ export function Calendar({ orgId }: { orgId: string }) {
             const today = sameDay(d, new Date());
             return (
               <div
-                className={`cal-cell${inMonth ? '' : ' out'}${today ? ' today' : ''}`}
                 key={i}
                 onClick={() => newPostOn(d)}
+                className={cn(
+                  'flex min-h-[104px] cursor-pointer flex-col gap-1 border-b border-r border-border p-1.5 text-left transition-colors hover:bg-accent/60',
+                  !inMonth && 'bg-card/60',
+                  i % 7 === 6 && 'border-r-0',
+                )}
               >
-                <span className="cal-date">{d.getDate()}</span>
+                <span
+                  className={cn(
+                    'dateline self-start !text-[11px]',
+                    !inMonth && 'opacity-40',
+                    today &&
+                      'rounded bg-[color:var(--pf-brick)] px-1 text-[color:var(--pf-bone)]',
+                  )}
+                >
+                  {d.getDate()}
+                </span>
                 {postsFor(d).map((p) => (
                   <button
-                    key={p.id}
-                    className="cal-post"
-                    data-status={p.status}
                     type="button"
+                    key={p.id}
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedId(p.id);
                     }}
+                    className={cn(
+                      'w-full text-left',
+                      'block truncate border-l-2 bg-background px-1.5 py-0.5 text-[11px]',
+                      p.status === 'published'
+                        ? 'border-l-primary'
+                        : p.status === 'failed'
+                          ? 'border-l-destructive'
+                          : 'border-l-action',
+                    )}
                   >
-                    <span className="txt">
-                      {p.campaign?.name ?? '—'}: {p.body || '(no text)'}
-                    </span>
+                    {p.campaign?.name ?? 'No campaign'}: {p.body || '(no text)'}
                   </button>
                 ))}
               </div>
@@ -201,142 +208,15 @@ export function Calendar({ orgId }: { orgId: string }) {
         </div>
       </div>
 
-      {selected && (
-        <PostModal
-          post={selected}
-          onClose={() => setSelectedId(null)}
-          onReload={load}
-          onChanged={() => {
-            setSelectedId(null);
-            void load();
-          }}
-        />
-      )}
+      <PostDetailSheet
+        post={selected}
+        onOpenChange={(open) => !open && setSelectedId(null)}
+        onReload={load}
+        onChanged={() => {
+          setSelectedId(null);
+          void load();
+        }}
+      />
     </>
-  );
-}
-
-function PostModal({
-  post,
-  onClose,
-  onReload,
-  onChanged,
-}: {
-  post: CalPost;
-  onClose: () => void;
-  onReload: () => Promise<void>;
-  onChanged: () => void;
-}) {
-  const navigate = useNavigate();
-  const [when, setWhen] = useState(toLocalInput(post.scheduled_at));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const published = post.status === 'published';
-  const isDraft = post.status === 'draft';
-
-  async function run(op: PromiseLike<{ error: { message: string } | null }>) {
-    setBusy(true);
-    setError(null);
-    const { error } = await op;
-    setBusy(false);
-    if (error) setError(error.message);
-    else onChanged();
-  }
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-          <StatusChip status={post.status} />
-          <strong>{post.campaign?.name}</strong>
-        </div>
-        <p className="body">{post.body || <span className="muted">(no text)</span>}</p>
-        <PostThumbs postId={post.id} />
-
-        {post.campaign && (
-          <ApprovalPanel
-            post={{
-              id: post.id,
-              campaign_id: post.campaign.id,
-              approval_state: post.approval_state,
-            }}
-            campaign={{
-              approval_mode: post.campaign.approval_mode,
-              approver_name: post.campaign.approver_name,
-            }}
-            onChange={() => void onReload()}
-          />
-        )}
-
-        {error && <p className="notice error">{error}</p>}
-
-        {published ? (
-          <div className="btnrow">
-            <button className="btn secondary" type="button" onClick={onClose}>
-              Close
-            </button>
-          </div>
-        ) : (
-          <>
-            <label htmlFor="m-when">{isDraft ? 'Put on the calendar for' : 'Scheduled for'}</label>
-            <input
-              id="m-when"
-              type="datetime-local"
-              value={when}
-              onChange={(e) => setWhen(e.target.value)}
-            />
-            <div className="btnrow">
-              <button
-                className="btn"
-                type="button"
-                disabled={busy || !when}
-                onClick={() =>
-                  void run(
-                    supabase
-                      .from('posts')
-                      .update({ status: 'scheduled', scheduled_at: new Date(when).toISOString() })
-                      .eq('id', post.id),
-                  )
-                }
-              >
-                {isDraft ? 'Add to calendar' : 'Reschedule'}
-              </button>
-              {!isDraft && (
-                <button
-                  className="btn secondary"
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(
-                      supabase
-                        .from('posts')
-                        .update({ status: 'draft', scheduled_at: null })
-                        .eq('id', post.id),
-                    )
-                  }
-                >
-                  Move to drafts
-                </button>
-              )}
-              <button
-                className="btn secondary"
-                type="button"
-                onClick={() => navigate(`/compose/${post.id}`)}
-              >
-                Edit
-              </button>
-              <button
-                className="btn danger"
-                type="button"
-                disabled={busy}
-                onClick={() => void run(supabase.from('posts').delete().eq('id', post.id))}
-              >
-                Delete
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
   );
 }

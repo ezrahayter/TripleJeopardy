@@ -2,14 +2,14 @@ const UPDATED = 'August 31, 2026';
 
 export function Privacy() {
   return (
-    <div className="legal">
-      <span className="wordmark">
-        Triple Jeopardy
-        <span className="firm">Positive Force</span>
-      </span>
+    <div className="mx-auto max-w-2xl px-5 py-12 [&_h2]:mt-8 [&_h2]:text-lg [&_h2]:font-bold [&_li]:mt-1.5 [&_p]:mt-3 [&_p]:leading-relaxed [&_ul]:mt-3 [&_ul]:list-disc [&_ul]:pl-5">
+      <div className="mb-8">
+        <div className="font-display text-lg font-black tracking-tight">Triple Jeopardy</div>
+        <div className="dateline mt-1">Positive Force</div>
+      </div>
 
-      <h1>Privacy Policy</h1>
-      <p className="muted">Last updated {UPDATED}</p>
+      <h1 className="text-2xl font-black tracking-tight">Privacy Policy</h1>
+      <p className="text-sm text-muted-foreground">Last updated {UPDATED}</p>
 
       <p>
         Triple Jeopardy is a social-media publishing tool operated by Positive Force. It is used by
@@ -28,8 +28,8 @@ export function Privacy() {
       <h2>What we collect</h2>
       <ul>
         <li>
-          <strong>Account information</strong> — the email address and password of each operator
-          who signs in.
+          <strong>Account information</strong> — the email address and password of each operator who
+          signs in.
         </li>
         <li>
           <strong>Connected social accounts</strong> — when you connect a Facebook Page, Instagram
@@ -81,7 +81,7 @@ export function Privacy() {
         To disconnect a social account, use the <strong>Accounts</strong> screen in the app — this
         deletes the stored credential immediately. To delete a campaign or an entire workspace and
         everything in it, use <strong>Settings</strong>. To request deletion of any remaining data,
-        email <a href="mailto:ezra@positiveforce.win">ezra@positiveforce.win</a> and we will
+        email <a className="text-[color:var(--pf-brick)] underline underline-offset-2" href="mailto:ezra@positiveforce.win">ezra@positiveforce.win</a> and we will
         remove it within 30 days.
       </p>
 
@@ -95,7 +95,7 @@ export function Privacy() {
       <h2>Contact</h2>
       <p>
         Positive Force —{' '}
-        <a href="mailto:ezra@positiveforce.win">ezra@positiveforce.win</a>
+        <a className="text-[color:var(--pf-brick)] underline underline-offset-2" href="mailto:ezra@positiveforce.win">ezra@positiveforce.win</a>
       </p>
     </div>
   );

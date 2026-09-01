@@ -1,20 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { X } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 import type { Campaign, PostStatus } from '@shared/types';
+import { isoToLocalInput } from '@/lib/format';
+import { PageHeader } from '@/components/PageHeader';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface ExistingMedia {
   id: string;
   path: string;
   url: string;
-}
-
-function isoToLocalInput(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 type Mode = 'draft' | 'schedule' | 'now';
@@ -139,7 +146,6 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
           .update({ body, campaign_id: campaignId })
           .eq('id', editId);
         if (error) throw error;
-        // content changed after it was sent/approved -> reset sign-off
         if (origApproval !== 'not_required') {
           await supabase.rpc('tj_reset_approval', { p_post_id: editId });
         }
@@ -170,6 +176,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
 
       if (mode === 'draft') {
         await supabase.from('posts').update({ status: 'draft', scheduled_at: null }).eq('id', postId);
+        toast.success('Saved as draft');
       } else {
         const when =
           mode === 'schedule' ? new Date(scheduleAt).toISOString() : new Date().toISOString();
@@ -177,6 +184,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
           .from('posts')
           .update({ status: 'scheduled', scheduled_at: when })
           .eq('id', postId);
+        toast.success(mode === 'now' ? 'Queued to publish' : 'Added to the calendar');
       }
 
       navigate(mode === 'draft' ? '/posts' : '/');
@@ -186,105 +194,147 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
     }
   }
 
-  if (!loaded) return <p className="muted">Loading…</p>;
+  if (!loaded) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
   return (
     <>
-      <h1>{editId ? 'Edit post' : 'Compose'}</h1>
-      <p className="sub">
-        {hasAccounts
-          ? 'This publishes automatically to the campaign’s connected accounts at the scheduled time.'
-          : 'Nothing’s connected for this campaign yet, so it sits on the calendar as a plan until you connect accounts.'}
-      </p>
-
-      <label htmlFor="campaign">Campaign</label>
-      <select id="campaign" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
-        {campaigns.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-
-      <label htmlFor="body">
-        Text <span className={chars > 300 ? 'error' : 'muted'}>· {chars} characters</span>
-      </label>
-      <textarea id="body" value={body} onChange={(e) => setBody(e.target.value)} />
-      <p className="muted" style={{ fontSize: '0.8rem', marginTop: 4 }}>
-        Limits when it publishes: Bluesky 300 · Threads 500 · Instagram 2,200 · Facebook long
-      </p>
-
-      <label htmlFor="images">Images ({totalImages}/{MAX_IMAGES})</label>
-      {totalImages < MAX_IMAGES && (
-        <input
-          id="images"
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={(e) => {
-            addFiles(e.target.files);
-            e.target.value = '';
-          }}
-        />
-      )}
-      {(existing.length > 0 || files.length > 0) && (
-        <div className="thumbs">
-          {existing.map((m) => (
-            <div className="thumb" key={m.id}>
-              <img src={m.url} alt="" />
-              <button
-                type="button"
-                aria-label="Remove image"
-                disabled={busy}
-                onClick={() => void removeExisting(m)}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-          {files.map((f, i) => (
-            <div className="thumb" key={`new-${i}`}>
-              <img src={previews[i]} alt={f.name} />
-              <button
-                type="button"
-                aria-label={`Remove ${f.name}`}
-                onClick={() => setFiles(files.filter((_, j) => j !== i))}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <label htmlFor="when">Date &amp; time on the calendar</label>
-      <input
-        id="when"
-        type="datetime-local"
-        value={scheduleAt}
-        onChange={(e) => setScheduleAt(e.target.value)}
+      <PageHeader
+        title={editId ? 'Edit post' : 'Compose'}
+        description={
+          hasAccounts
+            ? 'Publishes automatically to this campaign’s connected accounts at the scheduled time.'
+            : 'Nothing’s connected for this campaign yet — this sits on the calendar as a plan until you connect accounts.'
+        }
       />
 
-      {error && <p className="notice error">{error}</p>}
+      <div className="max-w-xl space-y-5">
+        <div className="space-y-1.5">
+          <Label htmlFor="campaign">Campaign</Label>
+          <Select value={campaignId} onValueChange={setCampaignId}>
+            <SelectTrigger id="campaign" className="w-full">
+              <SelectValue placeholder="Pick a campaign" />
+            </SelectTrigger>
+            <SelectContent>
+              {campaigns.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-      <div className="btnrow">
-        <button className="btn secondary" type="button" disabled={busy} onClick={() => void save('draft')}>
-          Save as draft
-        </button>
-        <button
-          className="btn"
-          type="button"
-          disabled={busy || !scheduleAt}
-          onClick={() => void save('schedule')}
-        >
-          {busy ? 'Working…' : editId ? 'Save to calendar' : 'Add to calendar'}
-        </button>
-        {hasAccounts && (
-          <button className="btn secondary" type="button" disabled={busy} onClick={() => void save('now')}>
-            Publish now
-          </button>
-        )}
+        <div className="space-y-1.5">
+          <div className="flex items-baseline justify-between">
+            <Label htmlFor="body">Text</Label>
+            <span
+              className={`dateline ${chars > 300 ? '!text-destructive' : ''}`}
+            >
+              {chars} characters
+            </span>
+          </div>
+          <Textarea
+            id="body"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={6}
+          />
+          <p className="dateline">
+            Bluesky 300 · Threads 500 · Instagram 2,200 · Facebook long
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="images">
+            Images ({totalImages}/{MAX_IMAGES})
+          </Label>
+          {totalImages < MAX_IMAGES && (
+            <Input
+              id="images"
+              type="file"
+              accept="image/*"
+              multiple
+              className="cursor-pointer file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs"
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = '';
+              }}
+            />
+          )}
+          {(existing.length > 0 || files.length > 0) && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {existing.map((m) => (
+                <Thumb key={m.id} src={m.url} disabled={busy} onRemove={() => void removeExisting(m)} />
+              ))}
+              {files.map((f, i) => (
+                <Thumb
+                  key={`new-${i}`}
+                  src={previews[i] ?? ''}
+                  alt={f.name}
+                  onRemove={() => setFiles(files.filter((_, j) => j !== i))}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="when">Date &amp; time on the calendar</Label>
+          <Input
+            id="when"
+            type="datetime-local"
+            value={scheduleAt}
+            onChange={(e) => setScheduleAt(e.target.value)}
+          />
+        </div>
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Button variant="secondary" disabled={busy} onClick={() => void save('draft')}>
+            Save as draft
+          </Button>
+          <Button disabled={busy || !scheduleAt} onClick={() => void save('schedule')}>
+            {busy ? 'Working…' : editId ? 'Save to calendar' : 'Add to calendar'}
+          </Button>
+          {hasAccounts && (
+            <Button variant="action" disabled={busy} onClick={() => void save('now')}>
+              Publish now
+            </Button>
+          )}
+        </div>
       </div>
     </>
+  );
+}
+
+function Thumb({
+  src,
+  alt = '',
+  disabled,
+  onRemove,
+}: {
+  src: string;
+  alt?: string;
+  disabled?: boolean;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="relative">
+      <img
+        src={src}
+        alt={alt}
+        className="size-24 rounded-md border border-input object-cover"
+      />
+      <button
+        type="button"
+        aria-label="Remove image"
+        disabled={disabled}
+        onClick={onRemove}
+        className="absolute -right-2 -top-2 grid size-5 place-items-center rounded-full border border-primary bg-background text-foreground"
+      >
+        <X className="size-3" />
+      </button>
+    </div>
   );
 }

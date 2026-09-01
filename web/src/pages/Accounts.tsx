@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 import type { Campaign, SocialAccount } from '@shared/types';
-
-const NETWORK_LABEL: Record<string, string> = {
-  bluesky: 'Bluesky',
-  facebook: 'Facebook Page',
-  instagram: 'Instagram',
-  threads: 'Threads',
-};
+import { NETWORK_LABEL } from '@/lib/format';
+import { PageHeader } from '@/components/PageHeader';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campaign[] }) {
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
@@ -15,7 +21,6 @@ export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campa
   const [handle, setHandle] = useState('');
   const [appPassword, setAppPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -33,7 +38,9 @@ export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campa
     void load();
     const params = new URLSearchParams(window.location.search);
     if (params.get('connected')) {
-      setNotice(`Connected ${params.get('connected')} (${params.get('count') ?? '1'} account(s)).`);
+      toast.success(
+        `Connected ${params.get('connected')} (${params.get('count') ?? '1'} account(s)).`,
+      );
     }
     if (params.get('connect_error')) {
       setError(`Connect failed: ${params.get('connect_error')}`);
@@ -69,7 +76,6 @@ export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campa
     e.preventDefault();
     setBusy(true);
     setError(null);
-    setNotice(null);
     try {
       const { data, error } = await supabase.functions.invoke('connect-bluesky', {
         body: { campaign_id: campaignId, handle: handle.trim(), app_password: appPassword.trim() },
@@ -77,16 +83,16 @@ export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campa
       if (error) {
         let message = error.message;
         try {
-          const body = await (error as { context?: Response }).context?.json();
-          if (body?.error) message = body.error as string;
+          const b = await (error as { context?: Response }).context?.json();
+          if (b?.error) message = b.error as string;
         } catch {
-          /* keep the generic message */
+          /* keep generic */
         }
         setError(`Bluesky connect failed: ${message}`);
         return;
       }
       const acct = (data as { account?: { handle?: string } } | null)?.account;
-      setNotice(`Connected Bluesky account @${acct?.handle ?? handle.trim()}.`);
+      toast.success(`Connected @${acct?.handle ?? handle.trim()}`);
       setHandle('');
       setAppPassword('');
       await load();
@@ -99,6 +105,7 @@ export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campa
 
   async function remove(id: string) {
     await supabase.from('social_accounts').delete().eq('id', id);
+    toast.success('Disconnected');
     void load();
   }
 
@@ -106,95 +113,112 @@ export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campa
 
   return (
     <>
-      <h1>Accounts</h1>
-      <p className="sub">Connect the accounts this campaign posts from.</p>
+      <PageHeader
+        title="Accounts"
+        description="Connected once per campaign. Whoever connects a Page, everyone in the workspace publishes through it."
+      />
 
-      {notice && <p className="notice">{notice}</p>}
-      {error && <p className="notice error">{error}</p>}
+      {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
 
-      <label htmlFor="c">Campaign</label>
-      <select id="c" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
-        {campaigns.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
+      <div className="mb-6 max-w-xs space-y-1.5">
+        <Label htmlFor="c">Campaign</Label>
+        <Select value={campaignId} onValueChange={setCampaignId}>
+          <SelectTrigger id="c" className="w-full">
+            <SelectValue placeholder="Pick a campaign" />
+          </SelectTrigger>
+          <SelectContent>
+            {campaigns.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-      {accounts.map((a) => (
-        <div className="card" key={a.id}>
-          <strong>@{a.handle}</strong>{' '}
-          <span className="muted">
-            · {NETWORK_LABEL[a.network] ?? a.network} · {a.status}
-          </span>
-          <div className="meta">
-            {campaignName(a.campaign_id)}
-            {a.token_expires_at && ` · token expires ${new Date(a.token_expires_at).toLocaleDateString()}`}
-          </div>
-          <div className="btnrow">
-            <button className="btn danger" type="button" onClick={() => void remove(a.id)}>
-              Disconnect
-            </button>
-          </div>
+      {accounts.length > 0 && (
+        <div className="mb-8 overflow-hidden rounded-lg border border-border bg-card">
+          {accounts.map((a) => (
+            <div
+              key={a.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border p-4 last:border-b-0"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="font-medium">@{a.handle}</div>
+                <div className="dateline mt-0.5">
+                  {NETWORK_LABEL[a.network] ?? a.network} · {campaignName(a.campaign_id)} · {a.status}
+                  {a.token_expires_at &&
+                    ` · token to ${new Date(a.token_expires_at).toLocaleDateString()}`}
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={() => void remove(a.id)}
+              >
+                Disconnect
+              </Button>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
 
-      <h2>Connect an account</h2>
+      <h2 className="mb-3 text-lg font-bold">Connect an account</h2>
 
-      <div className="btnrow">
-        <button
-          className="btn"
-          type="button"
-          disabled={busy || !campaignId}
-          onClick={() => void connectOAuth('meta')}
-        >
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={busy || !campaignId} onClick={() => void connectOAuth('meta')}>
           Connect Facebook / Instagram
-        </button>
-        <button
-          className="btn"
-          type="button"
+        </Button>
+        <Button
+          variant="secondary"
           disabled={busy || !campaignId}
           onClick={() => void connectOAuth('threads')}
         >
           Connect Threads
-        </button>
+        </Button>
       </div>
-      <p className="muted" style={{ fontSize: '0.85rem', marginTop: 8 }}>
-        Meta connections need the app approved for Advanced Access first — until then
-        the authorize screen only works for accounts listed as testers on the Meta app.
+      <p className="mt-2 text-xs text-muted-foreground">
+        Meta connections work for accounts listed as testers on the Meta app until the app clears
+        review.
       </p>
 
-      <h2>Connect Bluesky</h2>
-      <form onSubmit={connectBluesky}>
-        <label htmlFor="h">Handle</label>
-        <input
-          id="h"
-          type="text"
-          required
-          placeholder="name.bsky.social"
-          value={handle}
-          onChange={(e) => setHandle(e.target.value)}
-        />
-        <label htmlFor="p">
-          App password (
-          <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noreferrer">
-            create one
-          </a>
-          )
-        </label>
-        <input
-          id="p"
-          type="password"
-          required
-          placeholder="xxxx-xxxx-xxxx-xxxx"
-          value={appPassword}
-          onChange={(e) => setAppPassword(e.target.value)}
-        />
-        <div className="btnrow">
-          <button className="btn secondary" type="submit" disabled={busy || !campaignId}>
-            {busy ? 'Verifying…' : 'Connect Bluesky'}
-          </button>
+      <h2 className="mb-3 mt-8 text-lg font-bold">Connect Bluesky</h2>
+      <form onSubmit={connectBluesky} className="max-w-sm space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="h">Handle</Label>
+          <Input
+            id="h"
+            required
+            placeholder="name.bsky.social"
+            value={handle}
+            onChange={(e) => setHandle(e.target.value)}
+          />
         </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="p">
+            App password{' '}
+            <a
+              className="text-[color:var(--pf-brick)] underline underline-offset-2"
+              href="https://bsky.app/settings/app-passwords"
+              target="_blank"
+              rel="noreferrer"
+            >
+              (create one)
+            </a>
+          </Label>
+          <Input
+            id="p"
+            type="password"
+            required
+            placeholder="xxxx-xxxx-xxxx-xxxx"
+            value={appPassword}
+            onChange={(e) => setAppPassword(e.target.value)}
+          />
+        </div>
+        <Button type="submit" variant="secondary" disabled={busy || !campaignId}>
+          {busy ? 'Verifying…' : 'Connect Bluesky'}
+        </Button>
       </form>
     </>
   );

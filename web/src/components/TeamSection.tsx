@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { Invite, Member } from '../lib/useWorkspace';
+import { toast } from 'sonner';
+import type { Invite, Member } from '@/lib/useWorkspace';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Props {
   orgId: string;
@@ -23,8 +34,6 @@ export function TeamSection({
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('editor');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -32,7 +41,7 @@ export function TeamSection({
       setMembers(t.members);
       setInvites(t.invites);
     } catch (err) {
-      setError(String((err as Error)?.message ?? err));
+      toast.error(String((err as Error)?.message ?? err));
     }
   }, [orgId, listTeam]);
 
@@ -42,14 +51,12 @@ export function TeamSection({
 
   async function guard(fn: () => Promise<void>, ok?: string) {
     setBusy(true);
-    setError(null);
-    setNotice(null);
     try {
       await fn();
       await refresh();
-      if (ok) setNotice(ok);
+      if (ok) toast.success(ok);
     } catch (err) {
-      setError(String((err as Error)?.message ?? err));
+      toast.error(String((err as Error)?.message ?? err));
     } finally {
       setBusy(false);
     }
@@ -62,85 +69,97 @@ export function TeamSection({
     void guard(async () => {
       await inviteMember(orgId, addr, role);
       setEmail('');
-    }, `${addr} added. If they don't have an account yet, they'll join the first time they sign in with that email.`);
+    }, `${addr} added. If they have no account yet, they join on first sign-in with that email.`);
   }
 
   return (
     <>
-      <h2>Team</h2>
-      <p className="sub">
-        People here can draft, schedule and manage posts for every campaign in this workspace.
-        Connected social accounts are shared — whoever connects a Page, everyone publishes through it.
+      <h2 className="text-lg font-bold">Team</h2>
+      <p className="mb-4 mt-1 max-w-prose text-sm text-muted-foreground">
+        Everyone here can draft, schedule, and manage posts for every campaign. Connected accounts
+        are shared — whoever connects a Page, the whole team publishes through it.
       </p>
 
-      {notice && <p className="notice">{notice}</p>}
-      {error && <p className="notice error">{error}</p>}
-
-      {members.map((m) => (
-        <div className="card" key={m.user_id}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ flex: 1 }}>
+      <div className="space-y-2">
+        {members.map((m) => (
+          <div
+            key={m.user_id}
+            className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3.5"
+          >
+            <span className="flex-1 text-sm">
               {m.email}
-              {m.user_id === currentUserId && <span className="muted"> (you)</span>}
+              {m.user_id === currentUserId && (
+                <span className="text-muted-foreground"> (you)</span>
+              )}
             </span>
-            <span className="appr-chip">{m.role}</span>
+            <span className="dateline">{m.role}</span>
             {m.user_id !== currentUserId && (
-              <button
-                className="btn danger"
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
                 disabled={busy}
                 onClick={() => {
                   if (window.confirm(`Remove ${m.email} from this workspace?`)) {
-                    void guard(() => removeMember(orgId, m.user_id));
+                    void guard(() => removeMember(orgId, m.user_id), 'Removed');
                   }
                 }}
               >
                 Remove
-              </button>
+              </Button>
             )}
           </div>
-        </div>
-      ))}
+        ))}
 
-      {invites.map((inv) => (
-        <div className="card" key={inv.id}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ flex: 1 }}>
-              {inv.email} <span className="muted">— invited, not signed in yet</span>
+        {invites.map((inv) => (
+          <div
+            key={inv.id}
+            className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border bg-card p-3.5"
+          >
+            <span className="flex-1 text-sm">
+              {inv.email}{' '}
+              <span className="text-muted-foreground">— invited, not signed in yet</span>
             </span>
-            <span className="appr-chip">{inv.role}</span>
-            <button
-              className="btn secondary"
-              type="button"
+            <span className="dateline">{inv.role}</span>
+            <Button
+              variant="ghost"
+              size="sm"
               disabled={busy}
-              onClick={() => void guard(() => cancelInvite(inv.id))}
+              onClick={() => void guard(() => cancelInvite(inv.id), 'Invite cancelled')}
             >
               Cancel
-            </button>
+            </Button>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
 
-      <form onSubmit={submitInvite}>
-        <label htmlFor="invite-email">Invite by email</label>
-        <input
-          id="invite-email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="ava@positiveforce.win"
-        />
-        <label htmlFor="invite-role">Role</label>
-        <select id="invite-role" value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="editor">Editor — full access</option>
-          <option value="viewer">Viewer — read only</option>
-          <option value="owner">Owner — full access + manage team &amp; workspace</option>
-        </select>
-        <div className="btnrow">
-          <button className="btn" type="submit" disabled={busy || !email.trim()}>
-            Send invite
-          </button>
+      <form onSubmit={submitInvite} className="mt-4 max-w-sm space-y-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="invite-email">Invite by email</Label>
+          <Input
+            id="invite-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="ava@positiveforce.win"
+          />
         </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="invite-role">Role</Label>
+          <Select value={role} onValueChange={setRole}>
+            <SelectTrigger id="invite-role" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="editor">Editor — full access</SelectItem>
+              <SelectItem value="viewer">Viewer — read only</SelectItem>
+              <SelectItem value="owner">Owner — full access + manage team</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button type="submit" disabled={busy || !email.trim()}>
+          Send invite
+        </Button>
       </form>
     </>
   );

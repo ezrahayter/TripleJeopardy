@@ -1,23 +1,27 @@
 import { useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import type { User } from '@supabase/supabase-js';
 import { useAuth } from './lib/useAuth';
 import { useWorkspace } from './lib/useWorkspace';
-import { Nav } from './components/Nav';
+import { AppShell } from './components/AppShell';
+import { Toaster } from './components/ui/sonner';
+import { TooltipProvider } from './components/ui/tooltip';
 import { Login } from './pages/Login';
 import { Bootstrap } from './pages/Bootstrap';
 import { Calendar } from './pages/Calendar';
 import { Posts } from './pages/Posts';
+import { Approvals } from './pages/Approvals';
 import { Compose } from './pages/Compose';
 import { Accounts } from './pages/Accounts';
 import { Settings } from './pages/Settings';
 import { Review } from './pages/Review';
 import { Privacy } from './pages/Privacy';
 
-function AuthedApp({ userId }: { userId: string }) {
-  const ws = useWorkspace(userId);
+function AuthedApp({ user }: { user: User }) {
+  const ws = useWorkspace(user.id);
   const [creating, setCreating] = useState(false);
 
-  if (ws.loading) return <p className="center muted">Loading…</p>;
+  if (ws.loading) return <CenteredNote>Loading…</CenteredNote>;
 
   if (ws.orgs.length === 0) {
     return <Bootstrap onCreate={ws.createWorkspace} />;
@@ -35,20 +39,21 @@ function AuthedApp({ userId }: { userId: string }) {
     );
   }
 
-  if (!ws.org) return <p className="center muted">Loading workspace…</p>;
+  if (!ws.org) return <CenteredNote>Loading workspace…</CenteredNote>;
   const orgId = ws.org.id;
 
   return (
-    <div className="shell">
-      <Nav
-        workspaces={ws.orgs}
-        current={ws.org}
-        onSelect={ws.selectWorkspace}
-        onNew={() => setCreating(true)}
-      />
+    <AppShell
+      workspaces={ws.orgs}
+      current={ws.org}
+      onSelect={ws.selectWorkspace}
+      onNew={() => setCreating(true)}
+      email={user.email ?? 'you'}
+    >
       <Routes>
         <Route index element={<Calendar key={orgId} orgId={orgId} />} />
         <Route path="posts" element={<Posts key={orgId} orgId={orgId} />} />
+        <Route path="approvals" element={<Approvals key={orgId} orgId={orgId} />} />
         <Route
           path="compose"
           element={<Compose key={orgId} orgId={orgId} campaigns={ws.campaigns} />}
@@ -68,7 +73,7 @@ function AuthedApp({ userId }: { userId: string }) {
               key={orgId}
               org={ws.org}
               campaigns={ws.campaigns}
-              currentUserId={userId}
+              currentUserId={user.id}
               onRename={ws.renameWorkspace}
               onDelete={ws.deleteWorkspace}
               onAddCampaign={ws.addCampaign}
@@ -84,6 +89,14 @@ function AuthedApp({ userId }: { userId: string }) {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+    </AppShell>
+  );
+}
+
+function CenteredNote({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">
+      {children}
     </div>
   );
 }
@@ -91,18 +104,21 @@ function AuthedApp({ userId }: { userId: string }) {
 export default function App() {
   const { session, loading } = useAuth();
 
-  if (loading) return <p className="center muted">Loading…</p>;
+  if (loading) return <CenteredNote>Loading…</CenteredNote>;
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/review/:token" element={<Review />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route
-          path="/*"
-          element={session ? <AuthedApp userId={session.user.id} /> : <Login />}
-        />
-      </Routes>
+      <TooltipProvider delayDuration={200}>
+        <Routes>
+          <Route path="/review/:token" element={<Review />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route
+            path="/*"
+            element={session ? <AuthedApp user={session.user} /> : <Login />}
+          />
+        </Routes>
+        <Toaster position="bottom-right" />
+      </TooltipProvider>
     </BrowserRouter>
   );
 }
