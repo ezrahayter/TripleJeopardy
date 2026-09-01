@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import type { Campaign, SocialAccount } from '@shared/types';
-import { NETWORK_LABEL } from '@/lib/format';
+import { NETWORKS, type NetworkId } from '@/lib/networks';
+import { timeAgo } from '@/lib/format';
 import { PageHeader } from '@/components/PageHeader';
+import { CampaignAvatar } from '@/components/CampaignAvatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+
+const STATUS_DOT: Record<string, string> = {
+  active: 'bg-[color:var(--pf-olive)]',
+  error: 'bg-destructive',
+  revoked: 'bg-muted-foreground',
+};
 
 export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campaign[] }) {
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
@@ -35,6 +44,10 @@ export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campa
   }, [orgId]);
 
   useEffect(() => {
+    if (!campaignId && campaigns[0]) setCampaignId(campaigns[0].id);
+  }, [campaigns, campaignId]);
+
+  useEffect(() => {
     void load();
     const params = new URLSearchParams(window.location.search);
     if (params.get('connected')) {
@@ -49,6 +62,13 @@ export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campa
       window.history.replaceState({}, '', '/accounts');
     }
   }, [load]);
+
+  const byCampaign = useMemo(() => {
+    return campaigns.map((c) => ({
+      campaign: c,
+      accounts: accounts.filter((a) => a.campaign_id === c.id),
+    }));
+  }, [campaigns, accounts]);
 
   async function connectOAuth(provider: 'meta' | 'threads') {
     setError(null);
@@ -109,8 +129,6 @@ export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campa
     void load();
   }
 
-  const campaignName = (id: string) => campaigns.find((c) => c.id === id)?.name ?? id;
-
   return (
     <>
       <PageHeader
@@ -120,7 +138,65 @@ export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campa
 
       {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
 
-      <div className="mb-6 max-w-xs space-y-1.5">
+      <div className="space-y-4">
+        {byCampaign.map(({ campaign, accounts: accts }) => (
+          <div key={campaign.id} className="rounded-xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2.5">
+              <CampaignAvatar name={campaign.name} size={30} />
+              <span className="font-semibold">{campaign.name}</span>
+              <span className="dateline ml-auto">
+                {accts.length === 0
+                  ? 'nothing connected'
+                  : `${accts.length} account${accts.length > 1 ? 's' : ''}`}
+              </span>
+            </div>
+
+            {accts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Select this campaign below and connect an account to start publishing for it.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {accts.map((a) => {
+                  const meta = NETWORKS[a.network as NetworkId];
+                  const Icon = meta?.icon;
+                  return (
+                    <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
+                      <span className="grid size-8 place-items-center rounded-full border border-border text-muted-foreground">
+                        {Icon ? <Icon className="size-4" /> : null}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 text-sm font-medium">
+                          <span
+                            className={cn('size-1.5 rounded-full', STATUS_DOT[a.status] ?? 'bg-muted-foreground')}
+                          />
+                          @{a.handle}
+                        </div>
+                        <div className="dateline mt-0.5">
+                          {meta?.label ?? a.network} · {a.status}
+                          {a.token_expires_at && ` · token ${timeAgo(a.token_expires_at)}`}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => void remove(a.id)}
+                      >
+                        Disconnect
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <h2 className="mb-3 mt-8 text-lg font-bold">Connect an account</h2>
+
+      <div className="mb-4 max-w-xs space-y-1.5">
         <Label htmlFor="c">Campaign</Label>
         <Select value={campaignId} onValueChange={setCampaignId}>
           <SelectTrigger id="c" className="w-full">
@@ -135,36 +211,6 @@ export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campa
           </SelectContent>
         </Select>
       </div>
-
-      {accounts.length > 0 && (
-        <div className="mb-8 overflow-hidden rounded-lg border border-border bg-card">
-          {accounts.map((a) => (
-            <div
-              key={a.id}
-              className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border p-4 last:border-b-0"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="font-medium">@{a.handle}</div>
-                <div className="dateline mt-0.5">
-                  {NETWORK_LABEL[a.network] ?? a.network} · {campaignName(a.campaign_id)} · {a.status}
-                  {a.token_expires_at &&
-                    ` · token to ${new Date(a.token_expires_at).toLocaleDateString()}`}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive"
-                onClick={() => void remove(a.id)}
-              >
-                Disconnect
-              </Button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <h2 className="mb-3 text-lg font-bold">Connect an account</h2>
 
       <div className="flex flex-wrap gap-2">
         <Button disabled={busy || !campaignId} onClick={() => void connectOAuth('meta')}>

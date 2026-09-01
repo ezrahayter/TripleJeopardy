@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   CalendarDays,
   CheckCircle2,
+  LayoutDashboard,
   ListChecks,
   Menu,
   PenLine,
@@ -25,7 +26,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const NAV = [
-  { to: '/', end: true, label: 'Calendar', icon: CalendarDays },
+  { to: '/', end: true, label: 'Overview', icon: LayoutDashboard },
+  { to: '/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/posts', label: 'Posts', icon: ListChecks },
   { to: '/compose', label: 'Compose', icon: PenLine },
   { to: '/approvals', label: 'Approvals', icon: CheckCircle2 },

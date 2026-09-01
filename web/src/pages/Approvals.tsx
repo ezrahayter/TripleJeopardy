@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type { ApprovalMode, ApprovalState, PostStatus } from '@shared/types';
 import { PageHeader } from '@/components/PageHeader';
 import { Dateline } from '@/components/Dateline';
+import { CampaignAvatar } from '@/components/CampaignAvatar';
 import { ApprovalChip } from '@/components/StatusChip';
 import { PostDetailSheet, type DetailPost } from '@/components/PostDetailSheet';
 
@@ -104,15 +105,14 @@ function Section({
             type="button"
             key={row.id}
             onClick={() => onOpen(row.id)}
-            className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 border-b border-border p-4 text-left last:border-b-0 hover:bg-background"
+            className="flex w-full items-center gap-3 border-b border-border p-4 text-left last:border-b-0 hover:bg-background"
           >
-            <Dateline
-              campaign={row.campaign?.name}
-              when={row.scheduled_at}
-              className="col-span-2"
-            />
-            <span className="truncate text-sm">
-              {row.body || <span className="text-muted-foreground">(no text)</span>}
+            <CampaignAvatar name={row.campaign?.name ?? '—'} size={32} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm">
+                {row.body || <span className="text-muted-foreground">(no text)</span>}
+              </span>
+              <Dateline campaign={row.campaign?.name} when={row.scheduled_at} />
             </span>
             <ApprovalChip state={row.approval_state} />
           </button>

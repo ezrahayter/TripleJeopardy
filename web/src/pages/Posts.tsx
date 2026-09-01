@@ -1,14 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, RefreshCw } from 'lucide-react';
+import { ExternalLink, Plus, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { ApprovalMode, ApprovalState, Post, PostTarget } from '@shared/types';
+import type { ApprovalMode, ApprovalState, Post } from '@shared/types';
+import { NETWORKS, type NetworkId } from '@/lib/networks';
+import { timeAgo } from '@/lib/format';
 import { PageHeader } from '@/components/PageHeader';
+import { CampaignAvatar } from '@/components/CampaignAvatar';
 import { Dateline } from '@/components/Dateline';
 import { StatusChip, ApprovalChip } from '@/components/StatusChip';
+import { PostThumbs } from '@/components/PostThumbs';
 import { PostDetailSheet, type DetailPost } from '@/components/PostDetailSheet';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+type Target = {
+  status: string;
+  external_url: string | null;
+  error: string | null;
+  social_account: { network: string; handle: string } | null;
+};
 
 type Row = Post & {
   campaign: {
@@ -17,7 +28,7 @@ type Row = Post & {
     approval_mode: ApprovalMode;
     approver_name: string | null;
   } | null;
-  post_targets: Array<Pick<PostTarget, 'status' | 'external_url' | 'error'>>;
+  post_targets: Target[];
 };
 
 const FILTERS = [
@@ -42,7 +53,7 @@ export function Posts({ orgId }: { orgId: string }) {
     const { data, error } = await supabase
       .from('posts')
       .select(
-        '*, campaign:campaigns(id, name, approval_mode, approver_name), post_targets(status, external_url, error)',
+        '*, campaign:campaigns(id, name, approval_mode, approver_name), post_targets(status, external_url, error, social_account:social_accounts(network, handle))',
       )
       .eq('org_id', orgId)
       .order('created_at', { ascending: false });
@@ -103,7 +114,7 @@ export function Posts({ orgId }: { orgId: string }) {
               'rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.04em] transition-colors',
               filter === f.key
                 ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-input bg-card text-muted-foreground hover:border-input',
+                : 'border-input bg-card text-muted-foreground hover:text-foreground',
             )}
           >
             {f.label}
@@ -119,37 +130,85 @@ export function Posts({ orgId }: { orgId: string }) {
         </p>
       )}
 
-      {shown.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
-          {shown.map((row) => {
-            const published = row.status === 'published';
-            return (
-              <button
-                type="button"
-                key={row.id}
-                onClick={() => setSelectedId(row.id)}
-                className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 border-b border-border p-4 text-left last:border-b-0 hover:bg-background"
-              >
-                <Dateline
-                  campaign={row.campaign?.name}
-                  when={row.scheduled_at}
-                  className="col-span-2"
-                />
-                <span className="truncate text-sm">
-                  {row.body || <span className="text-muted-foreground">(no text)</span>}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  {published || row.approval_state === 'not_required' ? (
-                    <StatusChip status={row.status} />
-                  ) : (
-                    <ApprovalChip state={row.approval_state} />
-                  )}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {shown.map((row) => {
+          const published = row.status === 'published';
+          const nets = [
+            ...new Set(
+              row.post_targets
+                .map((t) => t.social_account?.network)
+                .filter((n): n is string => Boolean(n)),
+            ),
+          ];
+          const links = row.post_targets.filter((t) => t.external_url);
+          const errs = row.post_targets.filter((t) => t.error);
+          return (
+            <button
+              type="button"
+              key={row.id}
+              onClick={() => setSelectedId(row.id)}
+              className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-input"
+            >
+              <div className="flex items-center gap-2.5">
+                <CampaignAvatar name={row.campaign?.name ?? '—'} size={32} />
+                <div className="min-w-0 flex-1 leading-tight">
+                  <div className="truncate text-sm font-semibold">
+                    {row.campaign?.name ?? 'Unknown campaign'}
+                  </div>
+                  <div className="dateline">
+                    {published && row.scheduled_at
+                      ? `published ${timeAgo(row.scheduled_at)}`
+                      : row.scheduled_at
+                        ? timeAgo(row.scheduled_at)
+                        : `drafted ${timeAgo(row.created_at)}`}
+                  </div>
+                </div>
+                {published || row.approval_state === 'not_required' ? (
+                  <StatusChip status={row.status} />
+                ) : (
+                  <ApprovalChip state={row.approval_state} />
+                )}
+              </div>
+
+              <p className="line-clamp-3 whitespace-pre-wrap text-sm">
+                {row.body || <span className="text-muted-foreground">(no text)</span>}
+              </p>
+
+              <PostThumbs postId={row.id} size={52} />
+
+              <div className="mt-auto flex items-center gap-2 pt-1">
+                {nets.length > 0 ? (
+                  <span className="flex gap-1">
+                    {nets.map((n) => {
+                      const meta = NETWORKS[n as NetworkId];
+                      if (!meta) return null;
+                      const Icon = meta.icon;
+                      return (
+                        <span
+                          key={n}
+                          className="grid size-5 place-items-center rounded-full border border-border text-muted-foreground"
+                        >
+                          <Icon className="size-3" />
+                        </span>
+                      );
+                    })}
+                  </span>
+                ) : (
+                  <Dateline campaign={undefined} when={row.scheduled_at} fallback="Draft" />
+                )}
+                {links.length > 0 && (
+                  <span className="dateline flex items-center gap-1 text-[color:var(--pf-brick)]">
+                    <ExternalLink className="size-3" /> {links.length} live
+                  </span>
+                )}
+                {errs.length > 0 && (
+                  <span className="dateline text-destructive">{errs.length} failed</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
       <PostDetailSheet
         post={selected}

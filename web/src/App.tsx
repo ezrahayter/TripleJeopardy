@@ -8,6 +8,7 @@ import { Toaster } from './components/ui/sonner';
 import { TooltipProvider } from './components/ui/tooltip';
 import { Login } from './pages/Login';
 import { Bootstrap } from './pages/Bootstrap';
+import { Dashboard } from './pages/Dashboard';
 import { Calendar } from './pages/Calendar';
 import { Posts } from './pages/Posts';
 import { Approvals } from './pages/Approvals';
@@ -51,7 +52,8 @@ function AuthedApp({ user }: { user: User }) {
       email={user.email ?? 'you'}
     >
       <Routes>
-        <Route index element={<Calendar key={orgId} orgId={orgId} />} />
+        <Route index element={<Dashboard key={orgId} orgId={orgId} />} />
+        <Route path="calendar" element={<Calendar key={orgId} orgId={orgId} />} />
         <Route path="posts" element={<Posts key={orgId} orgId={orgId} />} />
         <Route path="approvals" element={<Approvals key={orgId} orgId={orgId} />} />
         <Route
