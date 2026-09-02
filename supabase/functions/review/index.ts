@@ -98,7 +98,13 @@ Deno.serve(async (req: Request) => {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
-        out.push({ ...p, media, lastNote: ev?.note ?? null });
+        const { data: comments } = await admin
+          .from('post_comments')
+          .select('author, author_name, body, resolved, created_at')
+          .eq('post_id', p.id)
+          .order('created_at');
+
+        out.push({ ...p, media, lastNote: ev?.note ?? null, comments: comments ?? [] });
       }
       return out;
     }
@@ -253,6 +259,36 @@ Deno.serve(async (req: Request) => {
           submitter, // reply goes straight to the candidate who asked
         );
 
+        return json({ ok: true });
+      }
+
+      // ── candidate leaves a comment (not a decision) ───────────
+      if (action === 'comment') {
+        const body = clampText(bodyJson.body, 2000);
+        if (!body) return json({ error: 'Write something first.' }, 400);
+        const { data: p } = await admin
+          .from('posts')
+          .select('id')
+          .eq('id', bodyJson.post_id)
+          .eq('campaign_id', campaign.id)
+          .maybeSingle();
+        if (!p) return json({ error: 'That post is not part of this campaign.' }, 404);
+        const { error } = await admin.from('post_comments').insert({
+          org_id: campaign.org_id,
+          post_id: p.id,
+          author: 'reviewer',
+          author_name: campaign.approver_name ?? null,
+          body,
+        });
+        if (error) return json({ error: error.message }, 400);
+        await notify(
+          `New comment — ${campaign.name}`,
+          `<p>${escapeHtml(campaign.approver_name || 'The reviewer')} left a comment on a post for
+           <strong>${escapeHtml(campaign.name)}</strong>.</p>
+           <p style="border-left:2px solid #d9d3c4;padding-left:12px;color:#6b6a5e">${escapeHtml(body)}</p>`,
+          { label: 'Open in Approvals', href: appUrl('/approvals') },
+          campaign.approver_email,
+        );
         return json({ ok: true });
       }
 

@@ -5,12 +5,20 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { RequestWizard } from '@/components/review/RequestWizard';
 
+interface Comment {
+  author: 'operator' | 'reviewer';
+  author_name: string | null;
+  body: string;
+  resolved: boolean;
+  created_at: string;
+}
 interface PendingPost {
   id: string;
   body: string;
   scheduled_at: string | null;
   media: string[];
   lastNote: string | null;
+  comments: Comment[];
 }
 interface ScheduledPost {
   id: string;
@@ -85,6 +93,17 @@ export function Review() {
     setData((d) => (d ? { ...d, pending: body.pending ?? d.pending } : d));
   }
 
+  async function comment(postId: string, body: string) {
+    const res = await fetch(FN, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({ token, action: 'comment', post_id: postId, body }),
+    });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error ?? 'Something went wrong.');
+    await loadFn();
+  }
+
   return (
     <div className="mx-auto max-w-xl px-5 py-12">
       <div className="mb-8">
@@ -143,7 +162,7 @@ export function Review() {
           ) : (
             <div className="mt-6 space-y-4">
               {data.pending.map((p, i) => (
-                <ReviewCard key={p.id} post={p} index={i + 1} onDecide={decide} />
+                <ReviewCard key={p.id} post={p} index={i + 1} onDecide={decide} onComment={comment} />
               ))}
             </div>
           )}
@@ -215,6 +234,7 @@ function ReviewCard({
   post,
   index,
   onDecide,
+  onComment,
 }: {
   post: PendingPost;
   index: number;
@@ -223,12 +243,30 @@ function ReviewCard({
     decision: 'approved' | 'changes_requested',
     note: string,
   ) => Promise<void>;
+  onComment: (id: string, body: string) => Promise<void>;
 }) {
   const [note, setNote] = useState('');
   const [wantChanges, setWantChanges] = useState(false);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [commentOpen, setCommentOpen] = useState(false);
+  const [commentBusy, setCommentBusy] = useState(false);
+
+  async function sendComment() {
+    if (!commentText.trim()) return;
+    setCommentBusy(true);
+    try {
+      await onComment(post.id, commentText);
+      setCommentText('');
+      setCommentOpen(false);
+    } catch (e) {
+      setErr(String((e as Error)?.message ?? e));
+    } finally {
+      setCommentBusy(false);
+    }
+  }
 
   async function run(decision: 'approved' | 'changes_requested') {
     if (decision === 'changes_requested' && !note.trim()) {
@@ -278,6 +316,41 @@ function ReviewCard({
         {post.body || <span className="text-muted-foreground">(no text)</span>}
       </p>
 
+      {post.comments.length > 0 && (
+        <ul className="mt-3 space-y-1.5 border-t border-border pt-3">
+          {post.comments.map((c, i) => (
+            <li key={i} className={`text-[13px] ${c.resolved ? 'opacity-50' : ''}`}>
+              <span className="dateline">
+                {c.author === 'reviewer' ? 'You' : 'Team'} ·{' '}
+                {new Date(c.created_at).toLocaleDateString()}
+                {c.resolved ? ' · resolved' : ''}
+              </span>
+              <p className="whitespace-pre-wrap">{c.body}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {commentOpen && (
+        <div className="mt-3 space-y-2">
+          <Textarea
+            autoFocus
+            rows={2}
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder="Leave a note — this won't send the post back."
+          />
+          <div className="flex gap-2">
+            <Button variant="secondary" disabled={commentBusy} onClick={() => void sendComment()}>
+              Post comment
+            </Button>
+            <Button variant="ghost" disabled={commentBusy} onClick={() => setCommentOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
       {wantChanges ? (
         <div className="mt-3 space-y-2">
           <Textarea
@@ -309,6 +382,11 @@ function ReviewCard({
           <Button variant="outline" disabled={busy} onClick={() => setWantChanges(true)}>
             <MessageSquare className="size-4" /> Request changes
           </Button>
+          {!commentOpen && (
+            <Button variant="ghost" disabled={busy} onClick={() => setCommentOpen(true)}>
+              Comment
+            </Button>
+          )}
         </div>
       )}
     </div>

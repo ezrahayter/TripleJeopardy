@@ -193,8 +193,11 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
 - ✅ **Evergreen recycling** — mark a published post to re-draft every
   30/60/90 days (migration 0030, `worker/src/recycle.ts`, hourly)
 
+- ✅ **Post comments** — `post_comments` (migration 0031); threaded notes on a
+  draft in PostDetailSheet and on the review portal, resolvable, emailed to
+  the team. Not a decision — separate from the approval ledger.
+
 **Remaining:**
-- **Approval:** inline comments on the caption/image (Planable-style).
 - **Compose/schedule:** thread/carousel composer.
 - **Media:** media library, per-network aspect-ratio crop (Kibo `image-crop`
   vendored, unused), video passthrough.

@@ -183,6 +183,18 @@ export interface PostRequest {
   created_at: string;
 }
 
+export interface PostComment {
+  id: string;
+  org_id: string;
+  post_id: string;
+  author: 'operator' | 'reviewer';
+  author_name: string | null;
+  body: string;
+  anchor: string | null;
+  resolved: boolean;
+  created_at: string;
+}
+
 export interface PostRequestMedia {
   id: string;
   request_id: string;

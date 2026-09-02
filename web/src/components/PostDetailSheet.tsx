@@ -9,6 +9,7 @@ import { Dateline } from '@/components/Dateline';
 import { StatusChip } from '@/components/StatusChip';
 import { PostThumbs } from '@/components/PostThumbs';
 import { ApprovalLedger } from '@/components/ApprovalLedger';
+import { PostComments } from '@/components/PostComments';
 import { PostMetricsBar, hasAnyMetrics, type Metrics } from '@/components/PostMetricsBar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -413,6 +414,13 @@ export function PostDetailSheet({
                     </button>
                   ))}
                 </div>
+              </section>
+            )}
+
+            {extra?.org_id && (
+              <section className="border-b border-border px-5 py-4">
+                <h3 className="dateline mb-3">Comments</h3>
+                <PostComments postId={post.id} orgId={extra.org_id} />
               </section>
             )}
 
