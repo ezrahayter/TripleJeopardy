@@ -134,11 +134,17 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
    shares), Threads (likes/replies/reposts/quotes/views) implemented, unproven
    pending a live post. Analytics page + Posts cards + the post detail sheet
    show engagement (shared `PostMetricsBar`).
-4. **First-comment publishing** — stored + previewed today; wire the worker to
-   post it as a reply (needs `NetworkAdapter.publish` to accept `replyTo` or a
-   follow-up call). Bluesky first.
-5. **Meta token refresh hardening** — `worker/src/refresh.ts` exists but has only
-   run against dead apps.
+4. **First-comment publishing** — ✅ built 2026-09-01. `NetworkAdapter.comment()`;
+   the worker posts `posts.first_comment` right after the main post, best-effort
+   (`post_targets.comment_external_id` / `comment_error`, migration 0017).
+   **Bluesky proven live** (threaded reply). FB/IG need `pages_manage_engagement`
+   / `instagram_manage_comments` — added to `META_SCOPES`, so **reconnect** FB/IG
+   to pick them up. Threads written, unproven.
+5. **Meta token refresh hardening** — ✅ built 2026-09-01. `refresh.ts` now
+   re-derives the Page token from `me/accounts` after re-exchanging the user
+   token (self-heals an invalidated Page token); records
+   `social_accounts.token_error`, retries `status='error'` accounts
+   (migrations 0017–0018). Surfaced on the Accounts page.
 
 ### P2 — depth, once P1 lands
 - **Approval:** inline comments on the caption/image (Planable-style), approval
