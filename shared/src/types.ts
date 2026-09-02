@@ -154,6 +154,8 @@ export interface PostMedia {
   storage_path: string;
   alt_text: string;
   sort: number;
+  /** per-network cropped variants, keyed by network id */
+  crops: Record<string, string>;
 }
 
 export type RequestStatus = 'new' | 'accepted' | 'declined';

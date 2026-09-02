@@ -19,6 +19,7 @@ import { nextOpenSlot } from '@/lib/postingSlots';
 import { isVideoFile, isVideoUrl, MAX_VIDEO_MB } from '@/lib/media';
 import { MediaDropzone, type MediaItem } from '@/components/compose/MediaDropzone';
 import { MediaLibrary } from '@/components/compose/MediaLibrary';
+import { CropDialog } from '@/components/compose/CropDialog';
 import { ComposeTools } from '@/components/compose/ComposeTools';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -37,6 +38,7 @@ interface ExistingMedia {
   url: string;
   alt: string;
   video: boolean;
+  crops: Record<string, string>;
 }
 
 type Mode = 'draft' | 'schedule' | 'now';
@@ -57,6 +59,8 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [existing, setExisting] = useState<ExistingMedia[]>([]);
+  const [crops, setCrops] = useState<Record<string, Partial<Record<NetworkId, File>>>>({});
+  const [cropTarget, setCropTarget] = useState<string | null>(null);
   const [scheduleAt, setScheduleAt] = useState<Date | null>(() => {
     const at = params.get('at');
     const d = at ? new Date(at) : null;
@@ -217,7 +221,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const loadExistingMedia = useCallback(async (postId: string) => {
     const { data: rows } = await supabase
       .from('post_media')
-      .select('id, storage_path, alt_text')
+      .select('id, storage_path, alt_text, crops')
       .eq('post_id', postId)
       .order('sort');
     const paths = (rows ?? []).map((r) => r.storage_path as string);
@@ -233,6 +237,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       url: urlByPath.get(r.storage_path as string) ?? '',
       alt: (r.alt_text as string) ?? '',
       video: isVideoUrl(r.storage_path as string),
+      crops: (r.crops as Record<string, string>) ?? {},
     }));
     setExisting(list);
     setAlts((a) => {
@@ -373,6 +378,10 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
     }
   }
 
+  const croppedFor = (key: string, baseline: Record<string, string> = {}) => [
+    ...new Set([...Object.keys(baseline), ...Object.keys(crops[key] ?? {})]),
+  ].map((n) => NETWORKS[n as NetworkId]?.label ?? n);
+
   const mediaItems: MediaItem[] = [
     ...existing.map((e) => ({
       key: `e:${e.id}`,
@@ -380,6 +389,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       alt: alts[`e:${e.id}`] ?? '',
       removing: busy,
       video: e.video,
+      croppedFor: croppedFor(`e:${e.id}`, e.crops),
     })),
     ...files.map((f, i) => ({
       key: `f:${i}`,
@@ -387,6 +397,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       name: f.name,
       alt: alts[`f:${i}`] ?? '',
       video: isVideoFile(f),
+      croppedFor: croppedFor(`f:${i}`),
     })),
   ];
 
@@ -474,6 +485,27 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
         postId = data.id as string;
       }
 
+      // upload any staged per-network crops for one media row and persist the map
+      const saveCrops = async (
+        mediaId: string,
+        key: string,
+        baseline: Record<string, string>,
+      ) => {
+        const staged = crops[key];
+        if (!staged || Object.keys(staged).length === 0) return;
+        const next = { ...baseline };
+        for (const [net, cropFile] of Object.entries(staged)) {
+          if (!cropFile) continue;
+          const cpath = `${campaignId}/${postId}/crops/${net}-${crypto.randomUUID()}.jpg`;
+          const { error: cErr } = await supabase.storage
+            .from('media')
+            .upload(cpath, cropFile, { contentType: 'image/jpeg' });
+          if (cErr) throw cErr;
+          next[net] = cpath;
+        }
+        await supabase.from('post_media').update({ crops: next }).eq('id', mediaId);
+      };
+
       const base = existing.length;
       for (let i = 0; i < files.length; i++) {
         const file = files[i]!;
@@ -483,15 +515,19 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
           .from('media')
           .upload(path, file, { contentType: file.type });
         if (upErr) throw upErr;
-        const { error: mErr } = await supabase
+        const { data: mRow, error: mErr } = await supabase
           .from('post_media')
-          .insert({ post_id: postId, storage_path: path, sort: base + i, alt_text: alts[`f:${i}`]?.trim() ?? '' });
-        if (mErr) throw mErr;
+          .insert({ post_id: postId, storage_path: path, sort: base + i, alt_text: alts[`f:${i}`]?.trim() ?? '' })
+          .select('id')
+          .single();
+        if (mErr || !mRow) throw mErr ?? new Error('could not save media');
+        await saveCrops(mRow.id as string, `f:${i}`, {});
       }
 
       for (const m of existing) {
         const a = (alts[`e:${m.id}`] ?? '').trim();
         if (a !== m.alt) await supabase.from('post_media').update({ alt_text: a }).eq('id', m.id);
+        await saveCrops(m.id, `e:${m.id}`, m.crops);
       }
 
       if (mode === 'draft') {
@@ -514,7 +550,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       ) {
         const { data: mediaRows } = await supabase
           .from('post_media')
-          .select('storage_path, sort, alt_text')
+          .select('storage_path, sort, alt_text, crops')
           .eq('post_id', postId);
         const step = (base: Date, k: number) => {
           const d = new Date(base);
@@ -534,14 +570,31 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
             .select('id')
             .single();
           if (cErr || !copy) throw cErr ?? new Error('could not create repeat');
-          for (const m of (mediaRows as { storage_path: string; sort: number; alt_text: string }[]) ?? []) {
+          for (const m of (mediaRows as {
+            storage_path: string;
+            sort: number;
+            alt_text: string;
+            crops: Record<string, string> | null;
+          }[]) ?? []) {
             const ext = m.storage_path.split('.').pop() ?? 'bin';
             const dst = `${campaignId}/${copy.id}/${crypto.randomUUID()}.${ext}`;
             const { error: cpErr } = await supabase.storage.from('media').copy(m.storage_path, dst);
             if (cpErr) continue;
+            const copiedCrops: Record<string, string> = {};
+            for (const [net, cpath] of Object.entries(m.crops ?? {})) {
+              const cdst = `${campaignId}/${copy.id}/crops/${net}-${crypto.randomUUID()}.jpg`;
+              const { error } = await supabase.storage.from('media').copy(cpath, cdst);
+              if (!error) copiedCrops[net] = cdst;
+            }
             await supabase
               .from('post_media')
-              .insert({ post_id: copy.id, storage_path: dst, sort: m.sort, alt_text: m.alt_text ?? '' });
+              .insert({
+                post_id: copy.id,
+                storage_path: dst,
+                sort: m.sort,
+                alt_text: m.alt_text ?? '',
+                crops: copiedCrops,
+              });
           }
         }
         toast.success(`Scheduled ${Math.min(repeatCount, 12)} posts`);
@@ -939,6 +992,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
               onAdd={addFiles}
               onAltChange={setAlt}
               onRemove={removeMedia}
+              onCrop={activeSelected.length > 0 ? setCropTarget : undefined}
             />
             {videoBlocked.length > 0 && (
               <p className="text-xs text-destructive">
@@ -1037,6 +1091,32 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
           />
         </div>
       </div>
+
+      {cropTarget &&
+        (() => {
+          const item = mediaItems.find((m) => m.key === cropTarget);
+          if (!item) return null;
+          const ex = cropTarget.startsWith('e:')
+            ? existing.find((e) => `e:${e.id}` === cropTarget)
+            : undefined;
+          const existingNets = Object.keys(ex?.crops ?? {}) as NetworkId[];
+          return (
+            <CropDialog
+              src={item.url}
+              name={item.name ?? 'image'}
+              networks={activeSelected}
+              existingCropNetworks={existingNets}
+              onApply={({ networks, file }) =>
+                setCrops((c) => {
+                  const next = { ...(c[cropTarget] ?? {}) };
+                  for (const n of networks) next[n] = file;
+                  return { ...c, [cropTarget]: next };
+                })
+              }
+              onClose={() => setCropTarget(null)}
+            />
+          );
+        })()}
     </>
   );
 }

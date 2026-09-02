@@ -69,20 +69,23 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
 
   const { data: mediaRows } = await supa
     .from('post_media')
-    .select('storage_path, alt_text, sort')
+    .select('storage_path, alt_text, sort, crops')
     .eq('post_id', post.id)
     .order('sort');
 
   const media: MediaInput[] = [];
   for (const row of mediaRows ?? []) {
-    const mime = guessMime(row.storage_path);
+    // use the network's cropped variant when the operator made one
+    const srcPath =
+      ((row.crops ?? {}) as Record<string, string>)[account.network] ?? row.storage_path;
+    const mime = guessMime(srcPath);
     // Bluesky takes raw image bytes; everything else (and all video) is handed
     // off as a signed URL the network fetches itself.
     const wantsBytes = account.network === 'bluesky' && !isVideoMime(mime);
     if (wantsBytes) {
       const { data: file, error: dlErr } = await supa.storage
         .from('media')
-        .download(row.storage_path);
+        .download(srcPath);
       if (dlErr || !file) throw new Error(`media download failed: ${dlErr?.message ?? 'missing'}`);
       media.push({
         bytes: new Uint8Array(await file.arrayBuffer()),
@@ -92,7 +95,7 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
     } else {
       const { data: signed, error: sErr } = await supa.storage
         .from('media')
-        .createSignedUrl(row.storage_path, SIGNED_URL_TTL);
+        .createSignedUrl(srcPath, SIGNED_URL_TTL);
       if (sErr || !signed?.signedUrl) {
         throw new Error(`could not sign media url: ${sErr?.message ?? 'missing'}`);
       }

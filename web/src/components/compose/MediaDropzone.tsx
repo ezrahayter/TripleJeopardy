@@ -1,4 +1,4 @@
-import { Film, ImagePlus, X } from 'lucide-react';
+import { Crop, Film, ImagePlus, X } from 'lucide-react';
 import { Dropzone, DropzoneEmptyState } from '@/components/kibo-ui/dropzone';
 import { MAX_VIDEO_MB, VIDEO_ACCEPT } from '@/lib/media';
 
@@ -9,6 +9,7 @@ export interface MediaItem {
   alt?: string;
   removing?: boolean;
   video?: boolean;
+  croppedFor?: string[];
 }
 
 export function MediaDropzone({
@@ -17,6 +18,7 @@ export function MediaDropzone({
   onAdd,
   onRemove,
   onAltChange,
+  onCrop,
   allowVideo = true,
 }: {
   items: MediaItem[];
@@ -24,6 +26,7 @@ export function MediaDropzone({
   onAdd: (files: File[]) => void;
   onRemove: (key: string) => void;
   onAltChange?: (key: string, alt: string) => void;
+  onCrop?: (key: string) => void;
   allowVideo?: boolean;
 }) {
   const hasVideo = items.some((m) => m.video);
@@ -59,7 +62,20 @@ export function MediaDropzone({
                 >
                   <X className="size-3" />
                 </button>
+                {onCrop && !m.video && (
+                  <button
+                    type="button"
+                    aria-label="Crop for a network"
+                    onClick={() => onCrop(m.key)}
+                    className="absolute -bottom-2 -right-2 grid size-5 place-items-center rounded-full border border-primary bg-background text-foreground shadow-sm hover:bg-secondary"
+                  >
+                    <Crop className="size-3" />
+                  </button>
+                )}
               </div>
+              {m.croppedFor && m.croppedFor.length > 0 && (
+                <p className="dateline mt-1 truncate">crop: {m.croppedFor.join(', ')}</p>
+              )}
               {onAltChange && !m.video && (
                 <input
                   value={m.alt ?? ''}

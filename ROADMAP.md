@@ -209,9 +209,13 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
   `post_targets.thread_posted` / `thread_error` track partial failures.
   **Unproven against live Threads API** — Bluesky path is straightforward.
 
-**Remaining:**
-- **Media:** per-network aspect-ratio crop (Kibo `image-crop` vendored, unused).
-  — the last P2 item.
+- ✅ **Per-network crop** — `post_media.crops` (migration 0034); the composer
+  crops an image to a ratio (1:1 / 4:5 / 1.91:1 / 16:9 / 9:16 / free) via
+  `react-image-crop`, applies it to chosen networks, uploads the JPEG variant.
+  Publisher picks `crops[network]` over the original. Recurring copies carry
+  crops. Canvas render is cross-origin-safe (`crossOrigin="anonymous"`).
+
+**P2 is done.** Everything below is P3.
 
 ### P3 — scale / polish
 - TikTok + YouTube adapters + OAuth.
