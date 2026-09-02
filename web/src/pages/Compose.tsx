@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { NetworkPicker } from '@/components/compose/NetworkPicker';
 import { PostPreview, type PreviewAccount } from '@/components/compose/PostPreview';
 import { SchedulePicker } from '@/components/compose/SchedulePicker';
+import { nextOpenSlot } from '@/lib/postingSlots';
 import { MediaDropzone, type MediaItem } from '@/components/compose/MediaDropzone';
 import { ComposeTools } from '@/components/compose/ComposeTools';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const [fromBusy, setFromBusy] = useState(false);
   const [rapidBusy, setRapidBusy] = useState(false);
   const [rapidOptions, setRapidOptions] = useState<string[]>([]);
+  const [takenSlots, setTakenSlots] = useState<Date[]>([]);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [overridesOpen, setOverridesOpen] = useState(false);
   const [useDisclaimer, setUseDisclaimer] = useState(true);
@@ -261,6 +263,23 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   useEffect(() => {
     if (!campaignId && campaigns[0]) setCampaignId(campaigns[0].id);
   }, [campaigns, campaignId]);
+
+  useEffect(() => {
+    if (!campaignId) return;
+    void supabase
+      .from('posts')
+      .select('id, scheduled_at')
+      .eq('campaign_id', campaignId)
+      .eq('status', 'scheduled')
+      .not('scheduled_at', 'is', null)
+      .then(({ data }) => {
+        setTakenSlots(
+          ((data as { id: string; scheduled_at: string }[]) ?? [])
+            .filter((r) => r.id !== editId)
+            .map((r) => new Date(r.scheduled_at)),
+        );
+      });
+  }, [campaignId, editId]);
 
   useEffect(() => {
     if (!campaignId) return;
@@ -711,7 +730,25 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
 
           <div className="space-y-1.5">
             <Label>Schedule</Label>
-            <SchedulePicker value={scheduleAt} onChange={setScheduleAt} />
+            <div className="flex flex-wrap items-center gap-2">
+              <SchedulePicker value={scheduleAt} onChange={setScheduleAt} />
+              {(campaign?.posting_slots?.length ?? 0) > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const slot = nextOpenSlot(campaign!.posting_slots, takenSlots);
+                    if (!slot) {
+                      toast.error('No open slot in the next 60 days — add more in Settings.');
+                      return;
+                    }
+                    setScheduleAt(slot);
+                  }}
+                >
+                  Next open slot
+                </Button>
+              )}
+            </div>
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}

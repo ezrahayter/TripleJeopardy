@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import type { ApprovalMode, Campaign, Org } from '@shared/types';
+import type { ApprovalMode, Campaign, Org, PostingSlot } from '@shared/types';
 import { FileText } from 'lucide-react';
 import { CampaignApproval } from '@/components/CampaignApproval';
 import { CampaignDates } from '@/components/CampaignDates';
+import { PostingSlots } from '@/components/PostingSlots';
 import { TeamSection } from '@/components/TeamSection';
 import { ApprovalReport } from '@/components/ApprovalReport';
 import type { Invite, Member } from '@/lib/useWorkspace';
@@ -21,6 +22,7 @@ interface Props {
   onRename: (id: string, name: string) => Promise<void>;
   onUpdateOrg: (id: string, patch: { notify_email?: string | null }) => Promise<void>;
   onPauseCampaign: (id: string, paused: boolean) => Promise<void>;
+  onUpdateSlots: (id: string, slots: PostingSlot[]) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onAddCampaign: (name: string) => Promise<void>;
   onRenameCampaign: (id: string, name: string) => Promise<void>;
@@ -50,6 +52,7 @@ export function Settings({
   onRename,
   onUpdateOrg,
   onPauseCampaign,
+  onUpdateSlots,
   onDelete,
   onAddCampaign,
   onRenameCampaign,
@@ -249,6 +252,11 @@ export function Settings({
               <>
                 <CampaignApproval campaign={c} onSave={(v) => onUpdateApproval(c.id, v)} />
                 <CampaignDates campaignId={c.id} orgId={org.id} />
+                <PostingSlots
+                  campaignId={c.id}
+                  slots={c.posting_slots ?? []}
+                  onSave={(slots) => onUpdateSlots(c.id, slots)}
+                />
               </>
             )}
           </div>

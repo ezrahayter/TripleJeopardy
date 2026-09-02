@@ -63,7 +63,13 @@ export interface Campaign {
   requests_enabled: boolean;
   publishing_paused: boolean;
   review_nudge_hours: number;
+  posting_slots: PostingSlot[];
   created_at: string;
+}
+
+export interface PostingSlot {
+  dow: number; // 0 = Sunday … 6 = Saturday
+  time: string; // "HH:MM"
 }
 
 export interface Snippet {

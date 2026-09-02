@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ApprovalMode, Campaign, Org } from '@shared/types';
+import type { ApprovalMode, Campaign, Org, PostingSlot } from '@shared/types';
 import { supabase } from './supabase';
 
 export interface Member {
@@ -35,6 +35,7 @@ interface WorkspaceState {
   renameWorkspace: (id: string, name: string) => Promise<void>;
   updateWorkspace: (id: string, patch: { notify_email?: string | null }) => Promise<void>;
   setCampaignPaused: (id: string, paused: boolean) => Promise<void>;
+  setCampaignSlots: (id: string, slots: PostingSlot[]) => Promise<void>;
   deleteWorkspace: (id: string) => Promise<void>;
   addCampaign: (name: string) => Promise<void>;
   renameCampaign: (id: string, name: string) => Promise<void>;
@@ -227,6 +228,18 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
     [org, loadCampaigns],
   );
 
+  const setCampaignSlots = useCallback<WorkspaceState['setCampaignSlots']>(
+    async (id, slots) => {
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ posting_slots: slots })
+        .eq('id', id);
+      if (error) throw error;
+      if (org) await loadCampaigns(org.id);
+    },
+    [org, loadCampaigns],
+  );
+
   const listTeam = useCallback(async (orgId: string) => {
     const [{ data: members, error: mErr }, { data: invites, error: iErr }] = await Promise.all([
       supabase.rpc('tj_list_members', { p_org: orgId }),
@@ -280,6 +293,7 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
     renameWorkspace,
     updateWorkspace,
     setCampaignPaused,
+    setCampaignSlots,
     deleteWorkspace,
     addCampaign,
     renameCampaign,
