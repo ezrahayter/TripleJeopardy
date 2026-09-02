@@ -65,23 +65,36 @@ only). Runs on free tiers (~$12/yr domain the only cost).
 - Delete a post from any pre-published state (Posts + Approvals kebab menu)
 - Route-level code-splitting (main bundle ~289 KB / 89 KB gzip)
 
+### Meta — Facebook publish PROVEN (2026-09-01)
+- **Facebook connect + publish works end to end.** TJ Sandbox Page connected via
+  Login-for-Business OAuth, worker published a text post
+  (`facebook.com/.../posts/122103845691456588`). `shared/src/adapters/facebook.ts`
+  needed **no fixes** — ran correctly first time against the live app.
+- **The working recipe (Development mode, no App Review):**
+  1. App in **Development mode** (Live mode was the cause of "Feature Unavailable").
+  2. **Ezra** authorizes — he's the app admin, and needs a **role on the Page**
+     (Content task access = instant; Full control = 7-day hold).
+  3. New **assign-to-campaign** panel (migration 0013, `connect-assign` fn) routes
+     each granted Page/IG to a campaign.
+  - Ava / any non-app-role account **cannot** authorize — Meta now requires
+    developer registration for app access via *every* route (App Roles AND
+    Business Portfolio), and Ezra can't pass the dev SMS wall. Ava operates the
+    app; Ezra holds every Meta connection. This is fine — matches the model.
+- **Still unproven:** `instagram.ts` (container create + poll), image/media posts
+  (different endpoints), Threads (needs its own separate app).
+- **App:** "TripleJeopardy2", ID `4393495657579660`. Also fixed: `/privacy` is now
+  a static crawlable page (`web/public/privacy.html`) — Meta's crawler runs no JS.
+  See [`docs/meta-setup.md`](docs/meta-setup.md).
+
 ### Blocked — needs Ezra, not code
-- **Meta OAuth connect.** The *"Feature Unavailable — updating additional
-  details for this app"* limbo **cleared on 2026-09-01** (~36h; coincided with
-  making `/privacy` a static crawlable page — Meta's crawler can't run JS). The
-  FB authorize dialog now loads. **Next: run Accounts → Connect Facebook end to
-  end** (Continue → asset/Page selection → `oauth-callback` stores the token),
-  then a session debugging the Graph adapters
-  (`shared/src/adapters/{facebook,instagram}.ts`) against a sandbox Page — they
-  have **never run against a live app**, expect field-name / permalink /
-  container-polling fixes.
-  - Meta app: "TripleJeopardy2", App ID `4393495657579660`. Development mode,
-    Standard Access permissions (no App Review needed for testers/admins).
-    Redirect URI: `https://zompyktytkwyueedshzk.supabase.co/functions/v1/oauth-callback`
-  - Note: the dialog renders as **"Facebook Login for Business"** — if Continue
-    doesn't lead to Page selection, the app may need a Login-for-Business
-    `config_id` instead of raw `scope=` in `_shared/meta.ts`.
-  - See [`docs/meta-setup.md`](docs/meta-setup.md) for the full setup.
+- **Business verification + App Review** — the durable path to letting Ava (and
+  real candidates) connect their own Pages without Ezra in the loop. Business
+  verification for Positive Force LLC started 2026-09-01 (document + phone-call
+  method; "@pages.dev" email option is broken — Meta guessed the domain from the
+  app URL). Then App Review for `pages_manage_posts` / `instagram_content_publish`
+  / `business_management` (screencast + written use-case). Multi-week.
+  Alternative worth building: **System User token** scoped to Business-owned Page
+  assets — removes per-person OAuth entirely.
 - **Add Ava as a Meta tester** — `ava.weston.679808` via App roles → Testers.
   She hit the dev-registration SMS wall; the Business-Portfolio route (add her
   as a person there) sidesteps it. She does **not** need Meta access to operate —
@@ -97,8 +110,9 @@ only). Runs on free tiers (~$12/yr domain the only cost).
 Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor has it.
 
 ### P1 — the near-term unlock list
-1. **Get Meta connecting** (Ezra retries) → then a session debugging the live
-   FB/IG adapters against a sandbox Page.
+1. **Meta:** ✅ Facebook connect + publish proven. Remaining: prove
+   `instagram.ts` (Business IG on the sandbox Page), prove image/media posts on
+   FB + IG, then business verification + App Review (see the Meta block above).
 2. **Auto-email** (Resend free tier — already planned, was deferred):
    - post sent for review → email the candidate the portal link
    - candidate approves / requests changes → email Ava

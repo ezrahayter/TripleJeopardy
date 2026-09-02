@@ -60,27 +60,35 @@ Deno.serve(async (req: Request) => {
       const assets = await metaListAssets(long.access_token);
       if (assets.length === 0) throw new Error('no Pages granted - pick a Page in the Meta dialog');
 
-      const refreshCipher = await encryptSecret(long.access_token, encKey);
+      // Stash the grant; the operator assigns each Page/IG to a campaign on the
+      // Accounts page, and only the chosen ones become social_accounts.
+      const stagedAssets = [];
       for (const a of assets) {
-        await admin.from('social_accounts').upsert(
-          {
-            org_id: st.org_id,
-            campaign_id: st.campaign_id,
-            network: a.network,
-            handle: a.handle,
-            external_id: a.external_id,
-            service_url: 'https://graph.facebook.com',
-            secret_ciphertext: await encryptSecret(a.page_token, encKey),
-            refresh_ciphertext: refreshCipher,
-            token_expires_at: expiresAt,
-            meta: a.meta,
-            status: 'active',
-          },
-          { onConflict: 'campaign_id,network,external_id' },
-        );
-        connected++;
+        stagedAssets.push({
+          network: a.network,
+          external_id: a.external_id,
+          handle: a.handle,
+          meta: a.meta,
+          token_ciphertext: await encryptSecret(a.page_token, encKey),
+        });
       }
-      label = 'Facebook / Instagram';
+      const { data: pending, error: pErr } = await admin
+        .from('pending_connections')
+        .insert({
+          org_id: st.org_id,
+          user_id: st.user_id,
+          provider: 'meta',
+          assets: stagedAssets,
+          refresh_ciphertext: await encryptSecret(long.access_token, encKey),
+          token_expires_at: expiresAt,
+        })
+        .select('id')
+        .single();
+      if (pErr || !pending) throw pErr ?? new Error('could not stage the connection');
+
+      const to = new URL(landing);
+      to.searchParams.set('assign', pending.id as string);
+      return new Response(null, { status: 302, headers: { location: to.toString() } });
     } else {
       const short = await threadsExchangeCode({ appId, appSecret, redirectUri, code });
       const long = await threadsLongLived({ appSecret, shortToken: short.access_token });

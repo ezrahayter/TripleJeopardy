@@ -16,5 +16,8 @@ verify_jwt = false
 [functions.oauth-callback]
 verify_jwt = false
 
+[functions.connect-assign]
+verify_jwt = false
+
 [functions.review]
 verify_jwt = false

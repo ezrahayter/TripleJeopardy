@@ -26,22 +26,33 @@ Deno.serve(async (req: Request) => {
     const { data: userData, error: userErr } = await admin.auth.getUser(jwt);
     if (userErr || !userData.user) return json({ error: 'Invalid session' }, 401);
 
-    const { campaign_id, provider, redirect_to } = await req.json();
+    const { campaign_id, org_id, provider, redirect_to } = await req.json();
     if (provider !== 'meta' && provider !== 'threads') {
       return json({ error: "provider must be 'meta' or 'threads'" }, 400);
     }
+    // Threads returns a single account -> keep binding it to one campaign up
+    // front. Meta returns every Page the operator manages -> connect at the org
+    // level and assign Pages to campaigns after authorizing.
+    if (provider === 'threads' && !campaign_id) {
+      return json({ error: 'campaign_id is required for Threads' }, 400);
+    }
 
-    const { data: campaign } = await admin
-      .from('campaigns')
-      .select('id, org_id')
-      .eq('id', campaign_id)
-      .maybeSingle();
-    if (!campaign) return json({ error: 'Campaign not found' }, 404);
+    let resolvedOrgId = org_id as string | undefined;
+    if (campaign_id) {
+      const { data: campaign } = await admin
+        .from('campaigns')
+        .select('id, org_id')
+        .eq('id', campaign_id)
+        .maybeSingle();
+      if (!campaign) return json({ error: 'Campaign not found' }, 404);
+      resolvedOrgId = campaign.org_id;
+    }
+    if (!resolvedOrgId) return json({ error: 'campaign_id or org_id is required' }, 400);
 
     const { data: membership } = await admin
       .from('memberships')
       .select('id')
-      .eq('org_id', campaign.org_id)
+      .eq('org_id', resolvedOrgId)
       .eq('user_id', userData.user.id)
       .maybeSingle();
     if (!membership) return json({ error: 'Not a member of this workspace' }, 403);
@@ -50,8 +61,8 @@ Deno.serve(async (req: Request) => {
     const { error: stateErr } = await admin.from('oauth_states').insert({
       state,
       provider,
-      org_id: campaign.org_id,
-      campaign_id,
+      org_id: resolvedOrgId,
+      campaign_id: provider === 'threads' ? campaign_id : null,
       user_id: userData.user.id,
       redirect_to: redirect_to ?? null,
     });
