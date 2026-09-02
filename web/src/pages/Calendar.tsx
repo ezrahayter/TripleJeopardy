@@ -28,7 +28,7 @@ import {
 import { cn } from '@/lib/utils';
 
 const SELECT =
-  'id, body, status, approval_state, scheduled_at, campaign:campaigns(id, name, approval_mode, approver_name, waived_networks, review_token), post_targets(social_account:social_accounts(network))';
+  'id, body, status, approval_state, scheduled_at, internal_note, campaign:campaigns(id, name, approval_mode, approver_name, waived_networks, review_token), post_targets(social_account:social_accounts(network))';
 
 interface CalPost {
   id: string;

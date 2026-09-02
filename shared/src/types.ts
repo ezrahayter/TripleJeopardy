@@ -87,6 +87,7 @@ export interface Post {
   approval_state: ApprovalState;
   scheduled_at: string | null;
   first_comment: string | null;
+  internal_note: string | null;
   body_overrides: Record<string, string>;
   created_at: string;
   updated_at: string;

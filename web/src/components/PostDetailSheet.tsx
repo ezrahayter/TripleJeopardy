@@ -26,6 +26,7 @@ export interface DetailPost {
   status: PostStatus;
   approval_state: ApprovalState;
   scheduled_at: string | null;
+  internal_note?: string | null;
   campaign: {
     id: string;
     name: string;
@@ -145,6 +146,12 @@ export function PostDetailSheet({
                 {post.body || <span className="text-muted-foreground">No text</span>}
               </p>
               <PostThumbs postId={post.id} />
+              {post.internal_note && (
+                <p className="rounded-md border border-dashed border-border bg-secondary/40 p-2.5 text-xs">
+                  <span className="dateline">Team note</span>
+                  <span className="mt-0.5 block whitespace-pre-wrap">{post.internal_note}</span>
+                </p>
+              )}
             </section>
 
             {published && targets.length > 0 && (

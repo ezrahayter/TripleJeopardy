@@ -59,6 +59,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   >([]);
   const [selected, setSelected] = useState<NetworkId[]>(ALL_IDS);
   const [firstComment, setFirstComment] = useState('');
+  const [internalNote, setInternalNote] = useState('');
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [overridesOpen, setOverridesOpen] = useState(false);
   const [useDisclaimer, setUseDisclaimer] = useState(true);
@@ -136,7 +137,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
     void (async () => {
       const { data, error } = await supabase
         .from('posts')
-        .select('body, status, approval_state, campaign_id, scheduled_at, first_comment, body_overrides')
+        .select('body, status, approval_state, campaign_id, scheduled_at, first_comment, internal_note, body_overrides')
         .eq('id', editId)
         .single();
       if (error || !data) {
@@ -146,6 +147,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       }
       setBody(data.body ?? '');
       setFirstComment((data.first_comment as string) ?? '');
+      setInternalNote((data.internal_note as string) ?? '');
       const ov = (data.body_overrides as Record<string, string>) ?? {};
       setOverrides(ov);
       if (Object.keys(ov).length > 0) setOverridesOpen(true);
@@ -247,6 +249,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       body: finalBody,
       campaign_id: campaignId,
       first_comment: firstComment.trim() || null,
+      internal_note: internalNote.trim() || null,
       body_overrides: cleanOverrides,
     };
 
@@ -434,6 +437,20 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
               value={firstComment}
               onChange={(e) => setFirstComment(e.target.value)}
               placeholder="Posted as the first reply — links, sources, hashtags"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="internal-note">Team note</Label>
+            <p className="text-xs text-muted-foreground">
+              Context for your team — never shown to the candidate.
+            </p>
+            <Textarea
+              id="internal-note"
+              rows={2}
+              value={internalNote}
+              onChange={(e) => setInternalNote(e.target.value)}
+              placeholder="e.g. hold until the endorsement is public"
             />
           </div>
 
