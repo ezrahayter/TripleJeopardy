@@ -1,5 +1,7 @@
 import { threadsGet, threadsPost, waitForContainer } from './meta-graph';
 import type {
+  CommentInput,
+  CommentResult,
   MediaInput,
   MetricsInput,
   NetworkAdapter,
@@ -100,6 +102,22 @@ export const threadsAdapter: NetworkAdapter = {
       externalId: published.id,
       url: info.permalink ?? `https://www.threads.net/@${account.handle}`,
     };
+  },
+
+  async comment({ account, secret, parentId, body }: CommentInput): Promise<CommentResult> {
+    const userId = account.externalId;
+    if (!userId) throw new Error('threads comment needs the Threads user id');
+    const container = await threadsPost<{ id: string }>(`${userId}/threads`, {
+      media_type: 'TEXT',
+      text: body,
+      reply_to_id: parentId,
+      access_token: secret,
+    });
+    const published = await threadsPost<{ id: string }>(`${userId}/threads_publish`, {
+      creation_id: container.id,
+      access_token: secret,
+    });
+    return { externalId: published.id };
   },
 
   async fetchMetrics({ secret, externalId }: MetricsInput): Promise<PostMetrics> {

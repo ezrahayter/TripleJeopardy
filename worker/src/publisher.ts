@@ -53,7 +53,7 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
     .from('post_targets')
     .select(
       `id,
-       post:posts ( id, body, body_overrides ),
+       post:posts ( id, body, body_overrides, first_comment ),
        account:social_accounts ( network, handle, service_url, external_id, meta, secret_ciphertext )`,
     )
     .eq('id', job.post_target_id)
@@ -104,23 +104,42 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
   const overrides = (post.body_overrides ?? {}) as Record<string, string>;
   const body = overrides[account.network]?.trim() || post.body || '';
 
-  const result = await adapter.publish({
-    account: {
-      handle: account.handle,
-      serviceUrl: account.service_url,
-      externalId: account.external_id,
-      meta: account.meta ?? null,
-    },
-    secret,
-    body,
-    media,
-  });
+  const accountRef = {
+    handle: account.handle,
+    serviceUrl: account.service_url,
+    externalId: account.external_id,
+    meta: account.meta ?? null,
+  };
+
+  const result = await adapter.publish({ account: accountRef, secret, body, media });
 
   await supa.rpc('tj_complete_job', {
     p_job: job.id,
     p_external_id: result.externalId,
     p_external_url: result.url,
   });
+
+  // first comment — best effort, never fails the (already published) post
+  const firstComment = (post.first_comment ?? '').trim();
+  if (firstComment && adapter.comment) {
+    try {
+      const c = await adapter.comment({
+        account: accountRef,
+        secret,
+        parentId: result.externalId,
+        body: firstComment,
+      });
+      await supa
+        .from('post_targets')
+        .update({ comment_external_id: c.externalId, comment_error: null })
+        .eq('id', job.post_target_id);
+    } catch (e) {
+      await supa
+        .from('post_targets')
+        .update({ comment_error: String((e as Error)?.message ?? e).slice(0, 500) })
+        .eq('id', job.post_target_id);
+    }
+  }
 
   return result.url;
 }

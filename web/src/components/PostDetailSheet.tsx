@@ -51,7 +51,15 @@ export function PostDetailSheet({
   const [when, setWhen] = useState('');
   const [busy, setBusy] = useState(false);
   const [targets, setTargets] = useState<
-    { id: string; network: string; metrics: Metrics; synced: string | null; url: string | null }[]
+    {
+      id: string;
+      network: string;
+      metrics: Metrics;
+      synced: string | null;
+      url: string | null;
+      commentPosted: boolean;
+      commentError: string | null;
+    }[]
   >([]);
 
   // reset the datetime field whenever a different post opens
@@ -89,7 +97,9 @@ export function PostDetailSheet({
     void (async () => {
       const { data } = await supabase
         .from('post_targets')
-        .select('id, external_url, metrics, metrics_synced_at, social_account:social_accounts(network)')
+        .select(
+          'id, external_url, metrics, metrics_synced_at, comment_external_id, comment_error, social_account:social_accounts(network)',
+        )
         .eq('post_id', post.id)
         .eq('status', 'published');
       if (cancelled) return;
@@ -100,6 +110,8 @@ export function PostDetailSheet({
           metrics: (t.metrics as Metrics) ?? {},
           synced: (t.metrics_synced_at as string) ?? null,
           url: (t.external_url as string) ?? null,
+          commentPosted: !!t.comment_external_id,
+          commentError: (t.comment_error as string) ?? null,
         })),
       );
     })();
@@ -160,6 +172,16 @@ export function PostDetailSheet({
                     ) : (
                       <p className="mt-1 text-xs text-muted-foreground">
                         {t.synced ? 'No engagement yet.' : 'Metrics not synced yet.'}
+                      </p>
+                    )}
+                    {t.commentPosted && (
+                      <p className="dateline mt-1.5 text-[color:var(--pf-olive)]">
+                        first comment posted
+                      </p>
+                    )}
+                    {t.commentError && (
+                      <p className="mt-1.5 text-xs text-destructive">
+                        first comment failed: {t.commentError}
                       </p>
                     )}
                     {t.synced && (

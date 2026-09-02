@@ -1,4 +1,6 @@
 import type {
+  CommentInput,
+  CommentResult,
   MediaInput,
   MetricsInput,
   NetworkAdapter,
@@ -148,6 +150,42 @@ export const blueskyAdapter: NetworkAdapter = {
       },
     );
 
+    const rkey = result.uri.split('/').pop() ?? '';
+    return {
+      externalId: result.uri,
+      url: `https://bsky.app/profile/${session.handle}/post/${rkey}`,
+    };
+  },
+
+  async comment({ account, secret, parentId, body }: CommentInput): Promise<CommentResult> {
+    const session = await createSession(account.serviceUrl, account.handle, secret);
+    // a reply needs the parent's cid as well as its uri
+    const found = await xrpc<{ posts?: Array<{ uri: string; cid: string }> }>(
+      account.serviceUrl,
+      'app.bsky.feed.getPosts',
+      { token: session.accessJwt, query: { uris: parentId } },
+    );
+    const parent = found.posts?.[0];
+    if (!parent) throw new Error('parent post not found');
+    const ref = { uri: parent.uri, cid: parent.cid };
+
+    const result = await xrpc<{ uri: string }>(
+      account.serviceUrl,
+      'com.atproto.repo.createRecord',
+      {
+        token: session.accessJwt,
+        body: {
+          repo: session.did,
+          collection: 'app.bsky.feed.post',
+          record: {
+            $type: 'app.bsky.feed.post',
+            text: body,
+            createdAt: new Date().toISOString(),
+            reply: { root: ref, parent: ref },
+          },
+        },
+      },
+    );
     const rkey = result.uri.split('/').pop() ?? '';
     return {
       externalId: result.uri,

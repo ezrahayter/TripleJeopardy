@@ -1,5 +1,7 @@
 import { graphGet, graphPost } from './meta-graph';
 import type {
+  CommentInput,
+  CommentResult,
   MediaInput,
   MetricsInput,
   NetworkAdapter,
@@ -89,6 +91,14 @@ export const facebookAdapter: NetworkAdapter = {
       externalId: postId,
       url: permalink.permalink_url ?? `https://www.facebook.com/${postId}`,
     };
+  },
+
+  async comment({ secret, parentId, body }: CommentInput): Promise<CommentResult> {
+    const res = await graphPost<{ id: string }>(`${parentId}/comments`, {
+      message: body,
+      access_token: secret,
+    });
+    return { externalId: res.id };
   },
 
   async fetchMetrics({ secret, externalId }: MetricsInput): Promise<PostMetrics> {

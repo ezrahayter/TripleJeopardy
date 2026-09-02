@@ -59,6 +59,7 @@ export interface SocialAccount {
   external_id: string | null;
   service_url: string;
   status: 'active' | 'error' | 'revoked';
+  token_error: string | null;
   token_expires_at: string | null;
   meta: Record<string, unknown>;
   created_at: string;
@@ -147,4 +148,6 @@ export interface PostTarget {
   published_at: string | null;
   metrics: Record<string, number>;
   metrics_synced_at: string | null;
+  comment_external_id: string | null;
+  comment_error: string | null;
 }

@@ -1,5 +1,7 @@
 import { graphGet, graphPost, waitForContainer } from './meta-graph';
 import type {
+  CommentInput,
+  CommentResult,
   MediaInput,
   MetricsInput,
   NetworkAdapter,
@@ -91,6 +93,15 @@ export const instagramAdapter: NetworkAdapter = {
       externalId: published.id,
       url: info.permalink ?? `https://www.instagram.com/p/${published.id}`,
     };
+  },
+
+  async comment({ secret, parentId, body }: CommentInput): Promise<CommentResult> {
+    // needs instagram_manage_comments — throws (and is logged, not fatal) if not granted
+    const res = await graphPost<{ id: string }>(`${parentId}/comments`, {
+      message: body,
+      access_token: secret,
+    });
+    return { externalId: res.id };
   },
 
   async fetchMetrics({ secret, externalId }: MetricsInput): Promise<PostMetrics> {

@@ -52,7 +52,7 @@ export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campa
     const { data } = await supabase
       .from('social_accounts')
       .select(
-        'id, org_id, campaign_id, network, account_type, handle, external_id, service_url, status, token_expires_at, meta, created_at',
+        'id, org_id, campaign_id, network, account_type, handle, external_id, service_url, status, token_error, token_expires_at, meta, created_at',
       )
       .eq('org_id', orgId)
       .order('created_at');
@@ -301,6 +301,11 @@ export function Accounts({ orgId, campaigns }: { orgId: string; campaigns: Campa
                           {meta?.label ?? a.network} · {a.status}
                           {a.token_expires_at && ` · token ${timeAgo(a.token_expires_at)}`}
                         </div>
+                        {a.status === 'error' && a.token_error && (
+                          <div className="mt-0.5 text-xs text-destructive">
+                            {a.token_error} — reconnect to fix.
+                          </div>
+                        )}
                       </div>
                       <Button
                         variant="ghost"

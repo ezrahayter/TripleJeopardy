@@ -81,6 +81,19 @@ export interface MetricsInput {
   externalId: string;
 }
 
+export interface CommentInput {
+  account: AccountRef;
+  secret: string;
+  /** The just-published post to reply to (post_targets.external_post_id). */
+  parentId: string;
+  body: string;
+}
+
+export interface CommentResult {
+  externalId: string;
+  url?: string;
+}
+
 export interface NetworkAdapter {
   network: string;
   /** Cheap local checks before anything touches the network. */
@@ -93,4 +106,7 @@ export interface NetworkAdapter {
   /** Pull engagement/reach for one published post. Optional — networks that
    *  don't implement it are skipped by the metrics sweep. */
   fetchMetrics?(input: MetricsInput): Promise<PostMetrics>;
+  /** Post the first comment as a reply/comment on the just-published post.
+   *  Optional. Failure here never fails the post. */
+  comment?(input: CommentInput): Promise<CommentResult>;
 }
