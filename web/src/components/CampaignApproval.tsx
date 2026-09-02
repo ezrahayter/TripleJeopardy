@@ -48,9 +48,11 @@ export function CampaignApproval({
   const [nudgeHours, setNudgeHours] = useState(String(campaign.review_nudge_hours ?? 0));
   const [reviewToken, setReviewToken] = useState(campaign.review_token);
   const [copied, setCopied] = useState(false);
+  const [icalCopied, setIcalCopied] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const portalUrl = `${window.location.origin}/review/${reviewToken}`;
+  const icalUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/calendar-feed?token=${reviewToken}`;
 
   async function rotate() {
     if (!window.confirm('Make a new link? The old one stops working immediately.')) return;
@@ -266,6 +268,28 @@ export function CampaignApproval({
             >
               Reset link
             </button>
+            <div className="border-t border-border pt-3">
+              <p className="dateline mb-1.5">Calendar subscription</p>
+              <div className="flex gap-2">
+                <Input readOnly value={icalUrl} onFocus={(e) => e.target.select()} className="text-xs" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(icalUrl);
+                    setIcalCopied(true);
+                    setTimeout(() => setIcalCopied(false), 1500);
+                  }}
+                >
+                  {icalCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                  {icalCopied ? 'Copied' : 'Copy'}
+                </Button>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Add this in Google or Apple Calendar to follow scheduled posts and key dates.
+              </p>
+            </div>
           </div>
 
           <Button size="sm" disabled={busy} onClick={() => void save()}>

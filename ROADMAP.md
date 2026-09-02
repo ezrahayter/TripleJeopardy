@@ -159,27 +159,31 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
 - ✅ **Review auto-nudge** — re-email the candidate if a post sits unapproved
   past `campaigns.review_nudge_hours` (migration 0022, `run-nudges` edge fn
   pinged by the worker every 30 min)
+- ✅ **Composer tools** — saved snippets (migration 0023), tracked-link/UTM
+  builder, emoji picker, alt text per image
+- ✅ **Metrics for all networks** — `fetchMetrics` on every adapter, worker
+  sync every 10 min (migration 0016), nightly snapshots → engagement trend
+  (migration 0024), rebuilt Analytics, per-network live post preview
+- ✅ **First-comment publishing** + Meta token-refresh hardening (migration 0017/0018)
+- ✅ **Compliance (*ours*)** — post types + FEC paid-spend log + fundraising
+  thermometer + source-required gate (migration 0025)
+- ✅ **Content sourcing** — bulk CSV upload, draft-from-a-link (`og-fetch`)
+- ✅ **AI** — `ai` edge fn (Claude Opus): caption/rewrite/tone/hashtags in the
+  composer, rapid-response draft options, feedback translator on the approval
+  ledger. Needs `ANTHROPIC_API_KEY` set.
 
 **Remaining:**
 - **Approval:** inline comments on the caption/image (Planable-style),
   revision-round tracking UI.
 - **Compose/schedule:** posting-time queue ("next slot"), recurring posts,
-  thread/carousel composer, link shortener + UTM builder, saved
-  caption/hashtag snippets, emoji picker.
+  thread/carousel composer.
 - **Calendar:** Google Calendar / iCal feed.
-- **Analytics:** nightly metric snapshots → time series, plain-language campaign
-  recap, top/bottom posts (top done), scheduled report emails, shareable live
-  report link.
-- **Compliance (*ours*):** boost/paid-spend log for FEC, source-required posts
-  (block approval until a source is attached), fundraising post type + goal
-  thermometer + ActBlue/WinRed attribution.
-- **Content sourcing:** RSS → drafts, evergreen recycling, bulk CSV upload,
-  draft-from-a-link, request kanban (the spreadsheet's Short-notice /
-  Media-missing / Need-approval columns).
+- **Analytics:** plain-language campaign recap, scheduled report emails,
+  shareable live report link.
+- **Content sourcing:** RSS → drafts, evergreen recycling, request kanban
+  (the spreadsheet's Short-notice / Media-missing / Need-approval columns).
 - **Media:** media library, per-network aspect-ratio crop (Kibo `image-crop`
-  vendored, unused), video passthrough, alt-text fields for all networks.
-- **AI:** caption gen/rewrite, tone adjustment, "feedback translator" (vague
-  note → concrete edits), rapid-response draft options.
+  vendored, unused), video passthrough.
 - **Client read-only calendar view.**
 
 ### P3 — scale / polish

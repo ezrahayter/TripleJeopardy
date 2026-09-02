@@ -31,5 +31,8 @@ verify_jwt = false
 [functions.ai]
 verify_jwt = false
 
+[functions.calendar-feed]
+verify_jwt = false
+
 [functions.review]
 verify_jwt = false
