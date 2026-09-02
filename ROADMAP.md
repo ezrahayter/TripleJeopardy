@@ -113,12 +113,13 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
 1. **Meta:** ✅ Facebook connect + publish proven. Remaining: prove
    `instagram.ts` (Business IG on the sandbox Page), prove image/media posts on
    FB + IG, then business verification + App Review (see the Meta block above).
-2. **Auto-email** (Resend free tier — already planned, was deferred):
-   - post sent for review → email the candidate the portal link
-   - candidate approves / requests changes → email Ava
-   - **candidate submits a post request → email Ava** (the Requests inbox is
-     silent today, same as approvals were)
-   - currently silent, so Ava has to text the candidate every time
+2. **Auto-email** (Resend):
+   - ✅ candidate submits a request / approves / requests changes → emails
+     `orgs.notify_email` (set in Settings). Built 2026-09-01 — needs
+     `RESEND_API_KEY` set on the function + a verified `EMAIL_FROM` domain to
+     actually send (no-ops until then).
+   - ⬜ post sent for review → email the *candidate* the portal link (the other
+     direction — still manual)
 3. **Bluesky metrics sync** — worker/edge step that pulls likes/reposts/replies
    into `post_targets` (add `metrics jsonb` + `metrics_synced_at`), so the
    Analytics page shows real reach. Meta metrics slot into the same shape later.
