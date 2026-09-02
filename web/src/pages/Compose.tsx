@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ import { NetworkPicker } from '@/components/compose/NetworkPicker';
 import { PostPreview, type PreviewAccount } from '@/components/compose/PostPreview';
 import { SchedulePicker } from '@/components/compose/SchedulePicker';
 import { MediaDropzone, type MediaItem } from '@/components/compose/MediaDropzone';
+import { ComposeTools } from '@/components/compose/ComposeTools';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -69,6 +70,23 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const totalImages = existing.length + files.length;
   const hasAccounts = accounts.length > 0;
   const campaign = campaigns.find((c) => c.id === campaignId);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertIntoBody = useCallback((text: string) => {
+    const el = bodyRef.current;
+    setBody((prev) => {
+      const start = el?.selectionStart ?? prev.length;
+      const end = el?.selectionEnd ?? prev.length;
+      const pad = start > 0 && !/\s$/.test(prev.slice(0, start)) ? ' ' : '';
+      const next = prev.slice(0, start) + pad + text + prev.slice(end);
+      queueMicrotask(() => {
+        el?.focus();
+        const pos = start + pad.length + text.length;
+        el?.setSelectionRange(pos, pos);
+      });
+      return next;
+    });
+  }, []);
   const disclaimer = campaign?.disclaimer?.trim() ?? '';
 
   /** body as it will be saved — disclaimer appended once, if opted in */
@@ -350,9 +368,18 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="body">Text</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="body">Text</Label>
+              <ComposeTools
+                orgId={orgId}
+                campaignId={campaignId}
+                campaignName={campaign?.name ?? 'Your campaign'}
+                onInsert={insertIntoBody}
+              />
+            </div>
             <Textarea
               id="body"
+              ref={bodyRef}
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={6}

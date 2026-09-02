@@ -51,6 +51,15 @@ export interface Campaign {
   created_at: string;
 }
 
+export interface Snippet {
+  id: string;
+  org_id: string;
+  campaign_id: string | null;
+  label: string;
+  body: string;
+  created_at: string;
+}
+
 export type CampaignDateKind = 'election' | 'filing' | 'debate' | 'fundraising' | 'milestone';
 
 export interface CampaignDate {
