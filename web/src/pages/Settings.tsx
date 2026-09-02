@@ -18,6 +18,7 @@ interface Props {
   campaigns: Campaign[];
   currentUserId: string;
   onRename: (id: string, name: string) => Promise<void>;
+  onUpdateOrg: (id: string, patch: { notify_email?: string | null }) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onAddCampaign: (name: string) => Promise<void>;
   onRenameCampaign: (id: string, name: string) => Promise<void>;
@@ -44,6 +45,7 @@ export function Settings({
   campaigns,
   currentUserId,
   onRename,
+  onUpdateOrg,
   onDelete,
   onAddCampaign,
   onRenameCampaign,
@@ -56,6 +58,7 @@ export function Settings({
 }: Props) {
   const navigate = useNavigate();
   const [name, setName] = useState(org.name);
+  const [notifyEmail, setNotifyEmail] = useState(org.notify_email ?? '');
   const [confirm, setConfirm] = useState('');
   const [newCampaign, setNewCampaign] = useState('');
   const [reportFor, setReportFor] = useState<Campaign | null>(null);
@@ -100,6 +103,40 @@ export function Settings({
         <div className="flex gap-2">
           <Input id="ws-name" value={name} onChange={(e) => setName(e.target.value)} />
           <Button type="submit" disabled={busy || !name.trim() || name.trim() === org.name}>
+            Save
+          </Button>
+        </div>
+      </form>
+
+      <form
+        className="mt-6 max-w-sm space-y-1.5"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          if ((notifyEmail.trim() || null) !== (org.notify_email ?? null)) {
+            void guard(
+              () => onUpdateOrg(org.id, { notify_email: notifyEmail }),
+              'Notification email saved',
+            );
+          }
+        }}
+      >
+        <Label htmlFor="ws-notify">Notification email</Label>
+        <p className="text-xs text-muted-foreground">
+          Where the team is emailed when a candidate submits a post request, approves a post, or
+          asks for changes. Leave blank to turn notifications off.
+        </p>
+        <div className="flex gap-2 pt-1">
+          <Input
+            id="ws-notify"
+            type="email"
+            placeholder="ava@example.com"
+            value={notifyEmail}
+            onChange={(e) => setNotifyEmail(e.target.value)}
+          />
+          <Button
+            type="submit"
+            disabled={busy || (notifyEmail.trim() || null) === (org.notify_email ?? null)}
+          >
             Save
           </Button>
         </div>

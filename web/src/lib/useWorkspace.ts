@@ -33,6 +33,7 @@ interface WorkspaceState {
   selectWorkspace: (id: string) => void;
   createWorkspace: (name: string, firstCampaign: string) => Promise<void>;
   renameWorkspace: (id: string, name: string) => Promise<void>;
+  updateWorkspace: (id: string, patch: { notify_email?: string | null }) => Promise<void>;
   deleteWorkspace: (id: string) => Promise<void>;
   addCampaign: (name: string) => Promise<void>;
   renameCampaign: (id: string, name: string) => Promise<void>;
@@ -135,6 +136,17 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
     if (error) throw error;
     await loadOrgs();
   }, [loadOrgs]);
+
+  const updateWorkspace = useCallback<WorkspaceState['updateWorkspace']>(
+    async (id, patch) => {
+      const clean: { notify_email?: string | null } = {};
+      if ('notify_email' in patch) clean.notify_email = patch.notify_email?.trim() || null;
+      const { error } = await supabase.from('orgs').update(clean).eq('id', id);
+      if (error) throw error;
+      await loadOrgs();
+    },
+    [loadOrgs],
+  );
 
   const deleteWorkspace = useCallback(
     async (id: string) => {
@@ -251,6 +263,7 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
     selectWorkspace,
     createWorkspace,
     renameWorkspace,
+    updateWorkspace,
     deleteWorkspace,
     addCampaign,
     renameCampaign,

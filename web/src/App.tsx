@@ -82,6 +82,7 @@ function AuthedApp({ user }: { user: User }) {
               campaigns={ws.campaigns}
               currentUserId={user.id}
               onRename={ws.renameWorkspace}
+              onUpdateOrg={ws.updateWorkspace}
               onDelete={ws.deleteWorkspace}
               onAddCampaign={ws.addCampaign}
               onRenameCampaign={ws.renameCampaign}

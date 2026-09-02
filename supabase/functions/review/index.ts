@@ -11,6 +11,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { cors, jsonResponse as json } from '../_shared/cors.ts';
+import { appUrl, emailShell, escapeHtml, sendEmail } from '../_shared/email.ts';
 
 const TEXT_CAP = 4000;
 
@@ -42,10 +43,19 @@ Deno.serve(async (req: Request) => {
 
     const { data: campaign } = await admin
       .from('campaigns')
-      .select('id, org_id, name, approver_name, waived_networks, requests_enabled')
+      .select(
+        'id, org_id, name, approver_name, waived_networks, requests_enabled, org:orgs(notify_email)',
+      )
       .eq('review_token', token)
       .maybeSingle();
     if (!campaign) return json({ error: 'This review link is not valid.' }, 404);
+
+    const notifyEmail = (campaign.org as { notify_email?: string | null } | null)?.notify_email ?? null;
+    function notify(subject: string, bodyHtml: string, cta?: { label: string; href: string }) {
+      if (!notifyEmail) return;
+      // fire-and-forget; never blocks or breaks the candidate's action
+      void sendEmail({ to: notifyEmail, subject, html: emailShell(bodyHtml, cta) });
+    }
 
     // the campaign's connected networks — the request wizard shows every
     // platform regardless, and marks these as auto-publishing
@@ -207,6 +217,17 @@ Deno.serve(async (req: Request) => {
           if (mErr) return json({ error: mErr.message }, 400);
         }
 
+        const from = clampText(r.submitter_email, 320) ?? 'the candidate';
+        const summary = caption ?? exactWording ?? notes ?? '';
+        notify(
+          `New post request — ${campaign.name}`,
+          `<p>${escapeHtml(from)} submitted a post request for <strong>${escapeHtml(campaign.name)}</strong>.</p>
+           <p style="color:#6b6a5e">${escapeHtml([clampText(r.content_type, 120), kinds.join(', ')].filter(Boolean).join(' · '))}</p>
+           ${summary ? `<p style="border-left:2px solid #d9d3c4;padding-left:12px;color:#6b6a5e">${escapeHtml(summary.slice(0, 300))}</p>` : ''}
+           ${rows.length ? `<p style="color:#6b6a5e">${rows.length} file${rows.length > 1 ? 's' : ''} attached</p>` : ''}`,
+          { label: 'Open the request', href: appUrl('/requests') },
+        );
+
         return json({ ok: true });
       }
 
@@ -217,7 +238,7 @@ Deno.serve(async (req: Request) => {
       }
       const { data: post } = await admin
         .from('posts')
-        .select('id, approval_state')
+        .select('id, approval_state, body')
         .eq('id', post_id)
         .eq('campaign_id', campaign.id)
         .maybeSingle();
@@ -231,12 +252,33 @@ Deno.serve(async (req: Request) => {
         .update({ approval_state: decision === 'approved' ? 'approved' : 'changes_requested' })
         .eq('id', post.id);
 
+      const cleanNote = typeof note === 'string' && note.trim() ? note.slice(0, 2000) : null;
       await admin.from('approval_events').insert({
         post_id: post.id,
         event: decision,
         actor: campaign.approver_name || 'reviewer',
-        note: typeof note === 'string' && note.trim() ? note.slice(0, 2000) : null,
+        note: cleanNote,
       });
+
+      const who = campaign.approver_name || 'The reviewer';
+      const excerpt = (post.body ?? '').split('\n')[0]?.slice(0, 200) ?? '';
+      if (decision === 'approved') {
+        notify(
+          `Approved — ${campaign.name}`,
+          `<p>${escapeHtml(who)} approved a post for <strong>${escapeHtml(campaign.name)}</strong>.</p>
+           ${excerpt ? `<p style="border-left:2px solid #d9d3c4;padding-left:12px;color:#6b6a5e">${escapeHtml(excerpt)}</p>` : ''}
+           <p style="color:#6b6a5e">It will publish on its scheduled date.</p>`,
+          { label: 'View in Approvals', href: appUrl('/approvals') },
+        );
+      } else {
+        notify(
+          `Changes requested — ${campaign.name}`,
+          `<p>${escapeHtml(who)} asked for changes on a post for <strong>${escapeHtml(campaign.name)}</strong>.</p>
+           ${cleanNote ? `<p style="border-left:2px solid #ac4a2a;padding-left:12px">“${escapeHtml(cleanNote)}”</p>` : ''}
+           ${excerpt ? `<p style="color:#6b6a5e">Post: ${escapeHtml(excerpt)}</p>` : ''}`,
+          { label: 'Open in Approvals', href: appUrl('/approvals') },
+        );
+      }
 
       return json({ ok: true, decision, pending: await loadPending() });
     }

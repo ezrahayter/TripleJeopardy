@@ -24,6 +24,7 @@ export type AccountType = 'official' | 'personal' | 'surrogate';
 export interface Org {
   id: string;
   name: string;
+  notify_email: string | null;
   created_at: string;
 }
 
