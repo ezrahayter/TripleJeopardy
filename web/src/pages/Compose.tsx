@@ -74,6 +74,8 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const [rapidBusy, setRapidBusy] = useState(false);
   const [rapidOptions, setRapidOptions] = useState<string[]>([]);
   const [takenSlots, setTakenSlots] = useState<Date[]>([]);
+  const [repeatEvery, setRepeatEvery] = useState<'none' | 'weekly' | 'biweekly' | 'monthly'>('none');
+  const [repeatCount, setRepeatCount] = useState(4);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [overridesOpen, setOverridesOpen] = useState(false);
   const [useDisclaimer, setUseDisclaimer] = useState(true);
@@ -424,6 +426,47 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
         toast.success(mode === 'now' ? 'Queued to publish' : 'Added to the calendar');
       }
 
+      if (
+        mode === 'schedule' &&
+        !editId &&
+        repeatEvery !== 'none' &&
+        repeatCount > 1
+      ) {
+        const { data: mediaRows } = await supabase
+          .from('post_media')
+          .select('storage_path, sort, alt_text')
+          .eq('post_id', postId);
+        const step = (base: Date, k: number) => {
+          const d = new Date(base);
+          if (repeatEvery === 'monthly') d.setMonth(d.getMonth() + k);
+          else d.setDate(d.getDate() + k * (repeatEvery === 'biweekly' ? 14 : 7));
+          return d;
+        };
+        for (let k = 1; k < Math.min(repeatCount, 12); k++) {
+          const { data: copy, error: cErr } = await supabase
+            .from('posts')
+            .insert({
+              org_id: orgId,
+              status: 'scheduled',
+              scheduled_at: step(scheduleAt!, k).toISOString(),
+              ...fields,
+            })
+            .select('id')
+            .single();
+          if (cErr || !copy) throw cErr ?? new Error('could not create repeat');
+          for (const m of (mediaRows as { storage_path: string; sort: number; alt_text: string }[]) ?? []) {
+            const ext = m.storage_path.split('.').pop() ?? 'bin';
+            const dst = `${campaignId}/${copy.id}/${crypto.randomUUID()}.${ext}`;
+            const { error: cpErr } = await supabase.storage.from('media').copy(m.storage_path, dst);
+            if (cpErr) continue;
+            await supabase
+              .from('post_media')
+              .insert({ post_id: copy.id, storage_path: dst, sort: m.sort, alt_text: m.alt_text ?? '' });
+          }
+        }
+        toast.success(`Scheduled ${Math.min(repeatCount, 12)} posts`);
+      }
+
       navigate(mode === 'draft' ? '/posts' : '/');
     } catch (err) {
       setError(String((err as Error)?.message ?? err));
@@ -749,6 +792,36 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
                 </Button>
               )}
             </div>
+            {scheduleAt && !editId && (
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-sm">
+                <span className="text-muted-foreground">Repeat</span>
+                <select
+                  value={repeatEvery}
+                  onChange={(e) => setRepeatEvery(e.target.value as typeof repeatEvery)}
+                  className="h-8 rounded-md border border-input bg-transparent px-2 text-sm"
+                >
+                  <option value="none">Don't repeat</option>
+                  <option value="weekly">Every week</option>
+                  <option value="biweekly">Every 2 weeks</option>
+                  <option value="monthly">Every month</option>
+                </select>
+                {repeatEvery !== 'none' && (
+                  <>
+                    <input
+                      type="number"
+                      min={2}
+                      max={12}
+                      value={repeatCount}
+                      onChange={(e) => setRepeatCount(Math.max(2, Math.min(12, Number(e.target.value))))}
+                      className="h-8 w-16 rounded-md border border-input bg-transparent px-2 text-sm"
+                    />
+                    <span className="text-muted-foreground">
+                      times — makes {repeatCount} separate scheduled posts
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
