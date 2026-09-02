@@ -12,6 +12,7 @@ import { StatusChip, ApprovalChip } from '@/components/StatusChip';
 import { PostThumbs } from '@/components/PostThumbs';
 import { PostRowMenu } from '@/components/PostRowMenu';
 import { PostDetailSheet, type DetailPost } from '@/components/PostDetailSheet';
+import { PostMetricsBar, hasAnyMetrics } from '@/components/PostMetricsBar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +20,8 @@ type Target = {
   status: string;
   external_url: string | null;
   error: string | null;
+  metrics: Record<string, number> | null;
+  metrics_synced_at: string | null;
   social_account: { network: string; handle: string } | null;
 };
 
@@ -54,7 +57,7 @@ export function Posts({ orgId }: { orgId: string }) {
     const { data, error } = await supabase
       .from('posts')
       .select(
-        '*, campaign:campaigns(id, name, approval_mode, approver_name, waived_networks, review_token), post_targets(status, external_url, error, social_account:social_accounts(network, handle))',
+        '*, campaign:campaigns(id, name, approval_mode, approver_name, waived_networks, review_token), post_targets(status, external_url, error, metrics, metrics_synced_at, social_account:social_accounts(network, handle))',
       )
       .eq('org_id', orgId)
       .order('created_at', { ascending: false });
@@ -143,6 +146,11 @@ export function Posts({ orgId }: { orgId: string }) {
           ];
           const links = row.post_targets.filter((t) => t.external_url);
           const errs = row.post_targets.filter((t) => t.error);
+          const totals: Record<string, number> = {};
+          for (const t of row.post_targets) {
+            for (const [k, v] of Object.entries(t.metrics ?? {})) totals[k] = (totals[k] ?? 0) + v;
+          }
+          const synced = row.post_targets.some((t) => t.metrics_synced_at);
           return (
             <div
               key={row.id}
@@ -208,6 +216,10 @@ export function Posts({ orgId }: { orgId: string }) {
                   <span className="dateline text-destructive">{errs.length} failed</span>
                 )}
               </div>
+
+              {published && synced && hasAnyMetrics(totals) && (
+                <PostMetricsBar metrics={totals} size="xs" className="-mt-1" />
+              )}
             </div>
           );
         })}

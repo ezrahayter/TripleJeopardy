@@ -1,6 +1,8 @@
 import type {
   MediaInput,
+  MetricsInput,
   NetworkAdapter,
+  PostMetrics,
   PublishInput,
   PublishResult,
   ValidationResult,
@@ -22,9 +24,11 @@ interface Session {
 async function xrpc<T>(
   serviceUrl: string,
   method: string,
-  opts: { token?: string; body?: unknown } = {},
+  opts: { token?: string; body?: unknown; query?: Record<string, string> } = {},
 ): Promise<T> {
-  const res = await fetch(new URL(`/xrpc/${method}`, serviceUrl), {
+  const target = new URL(`/xrpc/${method}`, serviceUrl);
+  for (const [k, v] of Object.entries(opts.query ?? {})) target.searchParams.set(k, v);
+  const res = await fetch(target, {
     method: opts.body === undefined ? 'GET' : 'POST',
     headers: {
       ...(opts.token ? { authorization: `Bearer ${opts.token}` } : {}),
@@ -148,6 +152,28 @@ export const blueskyAdapter: NetworkAdapter = {
     return {
       externalId: result.uri,
       url: `https://bsky.app/profile/${session.handle}/post/${rkey}`,
+    };
+  },
+
+  async fetchMetrics({ externalId }: MetricsInput): Promise<PostMetrics> {
+    // engagement counts are public — no session/credential needed
+    const res = await xrpc<{
+      posts?: Array<{
+        likeCount?: number;
+        repostCount?: number;
+        replyCount?: number;
+        quoteCount?: number;
+      }>;
+    }>('https://public.api.bsky.app', 'app.bsky.feed.getPosts', {
+      query: { uris: externalId },
+    });
+    const p = res.posts?.[0];
+    if (!p) return {};
+    return {
+      likes: p.likeCount ?? 0,
+      reposts: p.repostCount ?? 0,
+      replies: p.replyCount ?? 0,
+      quotes: p.quoteCount ?? 0,
     };
   },
 };

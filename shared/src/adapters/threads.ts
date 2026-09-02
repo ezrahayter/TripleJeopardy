@@ -1,7 +1,9 @@
 import { threadsGet, threadsPost, waitForContainer } from './meta-graph';
 import type {
   MediaInput,
+  MetricsInput,
   NetworkAdapter,
+  PostMetrics,
   PublishInput,
   PublishResult,
   ValidationResult,
@@ -98,5 +100,24 @@ export const threadsAdapter: NetworkAdapter = {
       externalId: published.id,
       url: info.permalink ?? `https://www.threads.net/@${account.handle}`,
     };
+  },
+
+  async fetchMetrics({ secret, externalId }: MetricsInput): Promise<PostMetrics> {
+    const out: PostMetrics = {};
+    const ins = await threadsGet<{
+      data?: Array<{ name?: string; values?: Array<{ value?: number }> }>;
+    }>(`${externalId}/insights`, {
+      metric: 'likes,replies,reposts,quotes,views',
+      access_token: secret,
+    });
+    for (const x of ins.data ?? []) {
+      const v = x.values?.[0]?.value ?? 0;
+      if (x.name === 'likes') out.likes = v;
+      if (x.name === 'replies') out.replies = v;
+      if (x.name === 'reposts') out.reposts = v;
+      if (x.name === 'quotes') out.quotes = v;
+      if (x.name === 'views') out.views = v;
+    }
+    return out;
   },
 };

@@ -125,9 +125,15 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
      `EMAIL_FROM="Triple Jeopardy <notifications@positiveforce.win>"`, redeploy
      `review` + `notify-candidate`. Until then Resend only delivers to
      `ezra@positiveforce.win`.
-3. **Bluesky metrics sync** — worker/edge step that pulls likes/reposts/replies
-   into `post_targets` (add `metrics jsonb` + `metrics_synced_at`), so the
-   Analytics page shows real reach. Meta metrics slot into the same shape later.
+3. **Metrics sync** — ✅ built 2026-09-01. `post_targets.metrics` +
+   `metrics_synced_at` (migration 0016); a worker step
+   (`worker/src/metrics.ts`, every 10 min, 6h per-post gate, 30-day window)
+   calls `adapter.fetchMetrics` for each network. **Bluesky proven live**
+   (likes/reposts/replies/quotes via the public appview). FB (likes/comments/
+   shares + reach if `read_insights`), IG (like/comment counts + reach/saves/
+   shares), Threads (likes/replies/reposts/quotes/views) implemented, unproven
+   pending a live post. Analytics page + Posts cards + the post detail sheet
+   show engagement (shared `PostMetricsBar`).
 4. **First-comment publishing** — stored + previewed today; wire the worker to
    post it as a reply (needs `NetworkAdapter.publish` to accept `replyTo` or a
    follow-up call). Bluesky first.

@@ -1,7 +1,9 @@
 import { graphGet, graphPost } from './meta-graph';
 import type {
   MediaInput,
+  MetricsInput,
   NetworkAdapter,
+  PostMetrics,
   PublishInput,
   PublishResult,
   ValidationResult,
@@ -87,5 +89,38 @@ export const facebookAdapter: NetworkAdapter = {
       externalId: postId,
       url: permalink.permalink_url ?? `https://www.facebook.com/${postId}`,
     };
+  },
+
+  async fetchMetrics({ secret, externalId }: MetricsInput): Promise<PostMetrics> {
+    const out: PostMetrics = {};
+    const p = await graphGet<{
+      likes?: { summary?: { total_count?: number } };
+      comments?: { summary?: { total_count?: number } };
+      shares?: { count?: number };
+    }>(externalId, {
+      fields: 'likes.summary(true),comments.summary(true),shares',
+      access_token: secret,
+    });
+    out.likes = p.likes?.summary?.total_count ?? 0;
+    out.comments = p.comments?.summary?.total_count ?? 0;
+    out.shares = p.shares?.count ?? 0;
+
+    // reach/impressions need read_insights — skip quietly if the token lacks it
+    try {
+      const ins = await graphGet<{
+        data?: Array<{ name?: string; values?: Array<{ value?: number }> }>;
+      }>(`${externalId}/insights`, {
+        metric: 'post_impressions,post_impressions_unique',
+        access_token: secret,
+      });
+      for (const m of ins.data ?? []) {
+        const v = m.values?.[0]?.value ?? 0;
+        if (m.name === 'post_impressions') out.impressions = v;
+        if (m.name === 'post_impressions_unique') out.reach = v;
+      }
+    } catch {
+      /* insights unavailable — engagement counts still returned */
+    }
+    return out;
   },
 };

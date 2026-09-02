@@ -1,7 +1,9 @@
 import { graphGet, graphPost, waitForContainer } from './meta-graph';
 import type {
   MediaInput,
+  MetricsInput,
   NetworkAdapter,
+  PostMetrics,
   PublishInput,
   PublishResult,
   ValidationResult,
@@ -89,5 +91,33 @@ export const instagramAdapter: NetworkAdapter = {
       externalId: published.id,
       url: info.permalink ?? `https://www.instagram.com/p/${published.id}`,
     };
+  },
+
+  async fetchMetrics({ secret, externalId }: MetricsInput): Promise<PostMetrics> {
+    const out: PostMetrics = {};
+    const m = await graphGet<{ like_count?: number; comments_count?: number }>(externalId, {
+      fields: 'like_count,comments_count',
+      access_token: secret,
+    });
+    out.likes = m.like_count ?? 0;
+    out.comments = m.comments_count ?? 0;
+
+    try {
+      const ins = await graphGet<{
+        data?: Array<{ name?: string; values?: Array<{ value?: number }> }>;
+      }>(`${externalId}/insights`, {
+        metric: 'reach,saved,shares',
+        access_token: secret,
+      });
+      for (const x of ins.data ?? []) {
+        const v = x.values?.[0]?.value ?? 0;
+        if (x.name === 'reach') out.reach = v;
+        if (x.name === 'saved') out.saves = v;
+        if (x.name === 'shares') out.shares = v;
+      }
+    } catch {
+      /* insights unavailable — like/comment counts still returned */
+    }
+    return out;
   },
 };

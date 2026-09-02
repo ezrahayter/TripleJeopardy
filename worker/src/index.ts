@@ -1,5 +1,6 @@
 import { runPublisher } from './publisher';
 import { runTokenRefresh } from './refresh';
+import { runMetricsSync } from './metrics';
 
 export interface Env {
   SUPABASE_URL: string;
@@ -12,15 +13,27 @@ export interface Env {
 
 async function tick(env: Env) {
   const publish = await runPublisher(env);
+  const minute = new Date().getUTCMinutes();
+
   // token refresh is cheap but doesn't need to run every minute
   let refresh: { checked: number; refreshed: number } | null = null;
-  if (env.META_APP_ID && new Date().getUTCMinutes() % 15 === 0) {
+  if (env.META_APP_ID && minute % 15 === 0) {
     refresh = await runTokenRefresh(env).catch((e) => {
       console.error('token refresh error', String(e?.message ?? e));
       return null;
     });
   }
-  return { publish, refresh };
+
+  // engagement/reach sync — every 10 min; the RPC's 6h gate throttles per-post
+  let metrics: { checked: number; synced: number } | null = null;
+  if (minute % 10 === 0) {
+    metrics = await runMetricsSync(env).catch((e) => {
+      console.error('metrics sync error', String(e?.message ?? e));
+      return null;
+    });
+  }
+
+  return { publish, refresh, metrics };
 }
 
 export default {

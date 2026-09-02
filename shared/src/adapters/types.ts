@@ -58,6 +58,29 @@ export interface ValidationResult {
   errors: string[];
 }
 
+/** Normalized engagement/reach. Every field optional — set only what the
+ *  network actually reports. Stored on post_targets.metrics. */
+export type PostMetrics = Partial<{
+  likes: number;
+  comments: number;
+  shares: number;
+  reposts: number;
+  replies: number;
+  quotes: number;
+  saves: number;
+  reach: number;
+  impressions: number;
+  views: number;
+}>;
+
+export interface MetricsInput {
+  account: AccountRef;
+  /** Decrypted publishing credential (same one used to publish). */
+  secret: string;
+  /** The published post's canonical id (post_targets.external_post_id). */
+  externalId: string;
+}
+
 export interface NetworkAdapter {
   network: string;
   /** Cheap local checks before anything touches the network. */
@@ -67,4 +90,7 @@ export interface NetworkAdapter {
   verify(input: VerifyInput): Promise<VerifyResult>;
   /** Publish one post to one account. Must be safe to call twice. */
   publish(input: PublishInput): Promise<PublishResult>;
+  /** Pull engagement/reach for one published post. Optional — networks that
+   *  don't implement it are skipped by the metrics sweep. */
+  fetchMetrics?(input: MetricsInput): Promise<PostMetrics>;
 }

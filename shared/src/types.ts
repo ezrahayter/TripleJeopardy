@@ -145,4 +145,6 @@ export interface PostTarget {
   external_url: string | null;
   error: string | null;
   published_at: string | null;
+  metrics: Record<string, number>;
+  metrics_synced_at: string | null;
 }

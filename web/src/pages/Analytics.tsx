@@ -4,6 +4,14 @@ import { supabase } from '@/lib/supabase';
 import { NETWORKS, type NetworkId } from '@/lib/networks';
 import { PageHeader } from '@/components/PageHeader';
 import { CampaignAvatar } from '@/components/CampaignAvatar';
+import {
+  PostMetricsBar,
+  engagementOf,
+  reachOf,
+  fmtCount,
+  type Metrics,
+} from '@/components/PostMetricsBar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 interface Pub {
@@ -13,6 +21,8 @@ interface Pub {
   network: string;
   campaign: string;
   body: string;
+  metrics: Metrics;
+  synced: string | null;
 }
 
 const WEEK_MS = 7 * 86400000;
@@ -26,7 +36,7 @@ export function Analytics({ orgId }: { orgId: string }) {
     const { data } = await supabase
       .from('post_targets')
       .select(
-        'id, published_at, external_url, social_account:social_accounts(network), post:posts!inner(body, org_id, campaign:campaigns(name))',
+        'id, published_at, external_url, metrics, metrics_synced_at, social_account:social_accounts(network), post:posts!inner(body, org_id, campaign:campaigns(name))',
       )
       .eq('status', 'published')
       .eq('post.org_id', orgId)
@@ -37,6 +47,8 @@ export function Analytics({ orgId }: { orgId: string }) {
         id: string;
         published_at: string | null;
         external_url: string | null;
+        metrics: Metrics | null;
+        metrics_synced_at: string | null;
         social_account: { network: string } | null;
         post: { body: string; campaign: { name: string } | null } | null;
       }>) ?? []
@@ -47,6 +59,8 @@ export function Analytics({ orgId }: { orgId: string }) {
       network: r.social_account?.network ?? 'unknown',
       campaign: r.post?.campaign?.name ?? '—',
       body: r.post?.body ?? '',
+      metrics: r.metrics ?? {},
+      synced: r.metrics_synced_at,
     }));
     setRows(list);
     setLoading(false);
@@ -66,7 +80,6 @@ export function Analytics({ orgId }: { orgId: string }) {
       (r) => r.published_at && new Date(r.published_at) >= monthStart,
     ).length;
 
-    // last 12 weeks of counts, oldest → newest
     const weeks = Array.from({ length: 12 }, (_, i) => {
       const end = now - (11 - i) * WEEK_MS;
       const start = end - WEEK_MS;
@@ -81,6 +94,15 @@ export function Analytics({ orgId }: { orgId: string }) {
     const byNetwork = new Map<string, number>();
     for (const r of rows) byNetwork.set(r.network, (byNetwork.get(r.network) ?? 0) + 1);
 
+    const totalEngagement = rows.reduce((s, r) => s + engagementOf(r.metrics), 0);
+    const totalReach = rows.reduce((s, r) => s + reachOf(r.metrics), 0);
+    const hasMetrics = rows.some((r) => r.synced);
+
+    const top = [...rows]
+      .filter((r) => engagementOf(r.metrics) > 0)
+      .sort((a, b) => engagementOf(b.metrics) - engagementOf(a.metrics))
+      .slice(0, 5);
+
     return {
       total: rows.length,
       thisMonth,
@@ -88,17 +110,37 @@ export function Analytics({ orgId }: { orgId: string }) {
       networks: byNetwork.size,
       weeks,
       byNetwork: [...byNetwork.entries()].sort((a, b) => b[1] - a[1]),
+      totalEngagement,
+      totalReach,
+      hasMetrics,
+      top,
     };
   }, [rows]);
 
   const maxWeek = Math.max(1, ...stats.weeks);
   const maxNet = Math.max(1, ...stats.byNetwork.map(([, n]) => n));
 
+  const tiles: { label: string; value: string }[] = [
+    { label: 'Published', value: fmtCount(stats.total) },
+    { label: 'This month', value: fmtCount(stats.thisMonth) },
+    { label: 'Posts / week', value: String(stats.perWeek) },
+    stats.hasMetrics
+      ? { label: 'Engagement', value: fmtCount(stats.totalEngagement) }
+      : { label: 'Networks', value: String(stats.networks) },
+    ...(stats.hasMetrics && stats.totalReach > 0
+      ? [{ label: 'Reach', value: fmtCount(stats.totalReach) }]
+      : []),
+  ];
+
   return (
     <>
       <PageHeader
         title="Analytics"
-        description="Publishing volume and consistency. Reach and engagement land here once metrics sync is enabled for a connected network."
+        description={
+          stats.hasMetrics
+            ? 'Volume, consistency, and engagement — synced from each connected network a few times a day.'
+            : 'Publishing volume and consistency. Engagement and reach fill in once a connected network has synced.'
+        }
       />
 
       {loading ? (
@@ -109,39 +151,67 @@ export function Analytics({ orgId }: { orgId: string }) {
         </p>
       ) : (
         <div className="space-y-5">
-          <div className="grid gap-3 sm:grid-cols-4">
-            {[
-              { label: 'Published', value: stats.total },
-              { label: 'This month', value: stats.thisMonth },
-              { label: 'Posts / week', value: stats.perWeek },
-              { label: 'Networks', value: stats.networks },
-            ].map((s) => (
-              <div key={s.label} className="rounded-xl bg-card p-4">
-                <div className="dateline">{s.label}</div>
-                <div className="mt-1 text-2xl font-black tabular-nums">{s.value}</div>
-              </div>
+          <div className={cn('grid gap-3', tiles.length >= 5 ? 'sm:grid-cols-5' : 'sm:grid-cols-4')}>
+            {tiles.map((s) => (
+              <Card key={s.label} className="gap-0 py-4">
+                <CardContent className="px-4">
+                  <div className="dateline">{s.label}</div>
+                  <div className="mt-1 text-2xl font-black tabular-nums">{s.value}</div>
+                </CardContent>
+              </Card>
             ))}
           </div>
 
-          <section className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-4 text-base font-bold">Last 12 weeks</h2>
-            <div className="flex items-end gap-1.5" style={{ height: 100 }}>
-              {stats.weeks.map((n, i) => (
-                <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-                  <span className="dateline tabular-nums">{n || ''}</span>
+          {stats.top.length > 0 && (
+            <Card className="gap-0 overflow-hidden py-0">
+              <CardHeader className="border-b py-4">
+                <CardTitle className="text-base">Top posts</CardTitle>
+              </CardHeader>
+              <CardContent className="px-0">
+                {stats.top.map((r) => (
                   <div
-                    className={cn('w-full rounded-sm', n ? 'bg-action' : 'bg-secondary')}
-                    style={{ height: `${Math.max(4, (n / maxWeek) * 68)}px` }}
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="dateline mt-2">12 weeks ago → now</div>
-          </section>
+                    key={r.id}
+                    className="flex items-center gap-3 border-b border-border p-4 last:border-b-0"
+                  >
+                    <CampaignAvatar name={r.campaign} size={28} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm">{r.body || '(no text)'}</span>
+                      <PostMetricsBar metrics={r.metrics} network={r.network} className="mt-1" />
+                    </span>
+                    <span className="dateline shrink-0 tabular-nums">
+                      {fmtCount(engagementOf(r.metrics))} eng.
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
-          <section className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-4 text-base font-bold">By network</h2>
-            <div className="space-y-2.5">
+          <Card className="gap-0 py-0">
+            <CardHeader className="py-5">
+              <CardTitle className="text-base">Last 12 weeks</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-5">
+              <div className="flex items-end gap-1.5" style={{ height: 100 }}>
+                {stats.weeks.map((n, i) => (
+                  <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
+                    <span className="dateline tabular-nums">{n || ''}</span>
+                    <div
+                      className={cn('w-full rounded-sm', n ? 'bg-action' : 'bg-secondary')}
+                      style={{ height: `${Math.max(4, (n / maxWeek) * 68)}px` }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="dateline mt-2">12 weeks ago → now</div>
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 py-0">
+            <CardHeader className="py-5">
+              <CardTitle className="text-base">By network</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2.5 pb-5">
               {stats.byNetwork.map(([net, n]) => {
                 const meta = NETWORKS[net as NetworkId];
                 const Icon = meta?.icon;
@@ -160,41 +230,50 @@ export function Analytics({ orgId }: { orgId: string }) {
                   </div>
                 );
               })}
-            </div>
-          </section>
+            </CardContent>
+          </Card>
 
-          <section className="overflow-hidden rounded-xl border border-border bg-card">
-            <h2 className="border-b border-border p-4 text-base font-bold">Published posts</h2>
-            {rows.slice(0, 40).map((r) => {
-              const meta = NETWORKS[r.network as NetworkId];
-              return (
-                <div
-                  key={r.id}
-                  className="flex items-center gap-3 border-b border-border p-4 last:border-b-0"
-                >
-                  <CampaignAvatar name={r.campaign} size={28} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm">{r.body || '(no text)'}</span>
-                    <span className="dateline">
-                      {meta?.label ?? r.network}
-                      {r.published_at &&
-                        ` · ${new Date(r.published_at).toLocaleDateString()}`}
+          <Card className="gap-0 overflow-hidden py-0">
+            <CardHeader className="border-b py-4">
+              <CardTitle className="text-base">Published posts</CardTitle>
+            </CardHeader>
+            <CardContent className="px-0">
+              {rows.slice(0, 40).map((r) => {
+                const meta = NETWORKS[r.network as NetworkId];
+                return (
+                  <div
+                    key={r.id}
+                    className="flex items-center gap-3 border-b border-border p-4 last:border-b-0"
+                  >
+                    <CampaignAvatar name={r.campaign} size={28} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm">{r.body || '(no text)'}</span>
+                      <span className="dateline flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span>
+                          {meta?.label ?? r.network}
+                          {r.published_at &&
+                            ` · ${new Date(r.published_at).toLocaleDateString()}`}
+                        </span>
+                        {r.synced && (
+                          <PostMetricsBar metrics={r.metrics} network={r.network} size="xs" />
+                        )}
+                      </span>
                     </span>
-                  </span>
-                  {r.external_url && (
-                    <a
-                      href={r.external_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="dateline flex items-center gap-1 text-[color:var(--pf-brick)]"
-                    >
-                      view <ExternalLink className="size-3" />
-                    </a>
-                  )}
-                </div>
-              );
-            })}
-          </section>
+                    {r.external_url && (
+                      <a
+                        href={r.external_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="dateline flex items-center gap-1 text-[color:var(--pf-brick)]"
+                      >
+                        view <ExternalLink className="size-3" />
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
         </div>
       )}
     </>
