@@ -95,6 +95,14 @@ export function ApprovalLedger({
   const canSend =
     post.approval_state === 'not_required' || post.approval_state === 'changes_requested';
 
+  const roundOf = new Map<string, number>();
+  let roundN = 0;
+  for (const e of events) {
+    if (e.event === 'sent_for_review') roundN += 1;
+    roundOf.set(e.id, roundN);
+  }
+  const totalRounds = roundN;
+
   async function sendForReview() {
     setBusy(true);
     setErr(null);
@@ -147,12 +155,25 @@ export function ApprovalLedger({
 
       {err && <p className="text-sm text-destructive">{err}</p>}
 
+      {totalRounds > 1 && (
+        <p className="dateline">
+          {post.approval_state === 'approved'
+            ? `Approved after ${totalRounds} rounds`
+            : `Review round ${totalRounds}`}
+        </p>
+      )}
+
       {events.length > 0 && (
         <ol className="relative ml-1 space-y-4 border-l border-input pl-5">
           {events.map((e) => {
             const isDecision = e.event === 'approved' || e.event === 'changes_requested';
             return (
               <li key={e.id} className="relative">
+                {e.event === 'sent_for_review' && totalRounds > 1 && (
+                  <span className="dateline absolute -left-[70px] top-0 hidden text-[color:var(--pf-olive)] sm:block">
+                    Rd {roundOf.get(e.id)}
+                  </span>
+                )}
                 <span
                   className={`absolute -left-[26px] top-1 size-[9px] rounded-full border-[1.5px] ${
                     isDecision
