@@ -49,6 +49,18 @@ export interface Campaign {
   created_at: string;
 }
 
+export type CampaignDateKind = 'election' | 'filing' | 'debate' | 'fundraising' | 'milestone';
+
+export interface CampaignDate {
+  id: string;
+  org_id: string;
+  campaign_id: string;
+  label: string;
+  date: string;
+  kind: CampaignDateKind;
+  created_at: string;
+}
+
 export interface SocialAccount {
   id: string;
   org_id: string;

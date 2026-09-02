@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import type { ApprovalMode, Campaign, Org } from '@shared/types';
 import { FileText } from 'lucide-react';
 import { CampaignApproval } from '@/components/CampaignApproval';
+import { CampaignDates } from '@/components/CampaignDates';
 import { TeamSection } from '@/components/TeamSection';
 import { ApprovalReport } from '@/components/ApprovalReport';
 import type { Invite, Member } from '@/lib/useWorkspace';
@@ -221,7 +222,10 @@ export function Settings({
               </div>
             )}
             {editingId !== c.id && (
-              <CampaignApproval campaign={c} onSave={(v) => onUpdateApproval(c.id, v)} />
+              <>
+                <CampaignApproval campaign={c} onSave={(v) => onUpdateApproval(c.id, v)} />
+                <CampaignDates campaignId={c.id} orgId={org.id} />
+              </>
             )}
           </div>
         ))}

@@ -56,7 +56,10 @@ function AuthedApp({ user }: { user: User }) {
       <Suspense fallback={<CenteredNote>Loading…</CenteredNote>}>
       <Routes>
         <Route index element={<Dashboard key={orgId} orgId={orgId} />} />
-        <Route path="calendar" element={<Calendar key={orgId} orgId={orgId} />} />
+        <Route
+          path="calendar"
+          element={<Calendar key={orgId} orgId={orgId} campaigns={ws.campaigns} />}
+        />
         <Route path="posts" element={<Posts key={orgId} orgId={orgId} />} />
         <Route path="approvals" element={<Approvals key={orgId} orgId={orgId} />} />
         <Route path="requests" element={<Requests key={orgId} orgId={orgId} />} />
