@@ -51,10 +51,11 @@ Deno.serve(async (req: Request) => {
     if (!campaign) return json({ error: 'This review link is not valid.' }, 404);
 
     const notifyEmail = (campaign.org as { notify_email?: string | null } | null)?.notify_email ?? null;
-    function notify(subject: string, bodyHtml: string, cta?: { label: string; href: string }) {
+    // awaited so the send completes before the isolate is torn down; sendEmail
+    // swallows its own errors, so this never breaks the candidate's action.
+    async function notify(subject: string, bodyHtml: string, cta?: { label: string; href: string }) {
       if (!notifyEmail) return;
-      // fire-and-forget; never blocks or breaks the candidate's action
-      void sendEmail({ to: notifyEmail, subject, html: emailShell(bodyHtml, cta) });
+      await sendEmail({ to: notifyEmail, subject, html: emailShell(bodyHtml, cta) });
     }
 
     // the campaign's connected networks — the request wizard shows every
@@ -219,7 +220,7 @@ Deno.serve(async (req: Request) => {
 
         const from = clampText(r.submitter_email, 320) ?? 'the candidate';
         const summary = caption ?? exactWording ?? notes ?? '';
-        notify(
+        await notify(
           `New post request — ${campaign.name}`,
           `<p>${escapeHtml(from)} submitted a post request for <strong>${escapeHtml(campaign.name)}</strong>.</p>
            <p style="color:#6b6a5e">${escapeHtml([clampText(r.content_type, 120), kinds.join(', ')].filter(Boolean).join(' · '))}</p>
@@ -263,7 +264,7 @@ Deno.serve(async (req: Request) => {
       const who = campaign.approver_name || 'The reviewer';
       const excerpt = (post.body ?? '').split('\n')[0]?.slice(0, 200) ?? '';
       if (decision === 'approved') {
-        notify(
+        await notify(
           `Approved — ${campaign.name}`,
           `<p>${escapeHtml(who)} approved a post for <strong>${escapeHtml(campaign.name)}</strong>.</p>
            ${excerpt ? `<p style="border-left:2px solid #d9d3c4;padding-left:12px;color:#6b6a5e">${escapeHtml(excerpt)}</p>` : ''}
@@ -271,7 +272,7 @@ Deno.serve(async (req: Request) => {
           { label: 'View in Approvals', href: appUrl('/approvals') },
         );
       } else {
-        notify(
+        await notify(
           `Changes requested — ${campaign.name}`,
           `<p>${escapeHtml(who)} asked for changes on a post for <strong>${escapeHtml(campaign.name)}</strong>.</p>
            ${cleanNote ? `<p style="border-left:2px solid #ac4a2a;padding-left:12px">“${escapeHtml(cleanNote)}”</p>` : ''}
