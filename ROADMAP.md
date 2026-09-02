@@ -196,12 +196,16 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
 
 - ✅ **Media library** — "From library" in the composer reuses any image the
   campaign has used before (dedup'd, signed thumbnails)
+- ✅ **Video passthrough** — composer accepts one video (exclusive of images,
+  200 MB, migration 0032); FB (`/videos`), IG Reels, Threads publish it by URL;
+  Bluesky/TikTok/YouTube flagged incompatible in the picker. `guessMime` +
+  video branches live in `shared/src/adapters/media.ts`. **Unproven against
+  live Meta** — no media of any kind has published yet, only text.
 
 **Remaining:**
 - **Compose/schedule:** thread / carousel composer (native reply-chains for
   Bluesky + Threads — needs publisher work).
-- **Media:** per-network aspect-ratio crop (Kibo `image-crop` vendored, unused),
-  video passthrough.
+- **Media:** per-network aspect-ratio crop (Kibo `image-crop` vendored, unused).
 
 ### P3 — scale / polish
 - TikTok + YouTube adapters + OAuth.

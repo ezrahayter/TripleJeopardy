@@ -64,15 +64,17 @@ export interface NetworkMeta {
   icon: Glyph;
   limit: number;
   family: 'feed' | 'photo' | 'video';
+  /** the adapter can publish a video file to this network today */
+  video: boolean;
 }
 
 export const NETWORKS: Record<NetworkId, NetworkMeta> = {
-  facebook: { id: 'facebook', label: 'Facebook', color: '#1877F2', icon: Facebook, limit: 63206, family: 'feed' },
-  instagram: { id: 'instagram', label: 'Instagram', color: '#E1306C', icon: Instagram, limit: 2200, family: 'photo' },
-  threads: { id: 'threads', label: 'Threads', color: '#4b4b4b', icon: Threads, limit: 500, family: 'feed' },
-  bluesky: { id: 'bluesky', label: 'Bluesky', color: '#0085FF', icon: Bluesky, limit: 300, family: 'feed' },
-  tiktok: { id: 'tiktok', label: 'TikTok', color: '#4b4b4b', icon: TikTok, limit: 2200, family: 'video' },
-  youtube: { id: 'youtube', label: 'YouTube', color: '#FF0000', icon: YouTube, limit: 5000, family: 'video' },
+  facebook: { id: 'facebook', label: 'Facebook', color: '#1877F2', icon: Facebook, limit: 63206, family: 'feed', video: true },
+  instagram: { id: 'instagram', label: 'Instagram', color: '#E1306C', icon: Instagram, limit: 2200, family: 'photo', video: true },
+  threads: { id: 'threads', label: 'Threads', color: '#4b4b4b', icon: Threads, limit: 500, family: 'feed', video: true },
+  bluesky: { id: 'bluesky', label: 'Bluesky', color: '#0085FF', icon: Bluesky, limit: 300, family: 'feed', video: false },
+  tiktok: { id: 'tiktok', label: 'TikTok', color: '#4b4b4b', icon: TikTok, limit: 2200, family: 'video', video: false },
+  youtube: { id: 'youtube', label: 'YouTube', color: '#FF0000', icon: YouTube, limit: 5000, family: 'video', video: false },
 };
 
 export const ALL_NETWORKS = Object.values(NETWORKS);

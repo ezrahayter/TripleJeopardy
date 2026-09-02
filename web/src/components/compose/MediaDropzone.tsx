@@ -1,5 +1,6 @@
-import { ImagePlus, X } from 'lucide-react';
+import { Film, ImagePlus, X } from 'lucide-react';
 import { Dropzone, DropzoneEmptyState } from '@/components/kibo-ui/dropzone';
+import { MAX_VIDEO_MB, VIDEO_ACCEPT } from '@/lib/media';
 
 export interface MediaItem {
   key: string;
@@ -7,6 +8,7 @@ export interface MediaItem {
   name?: string;
   alt?: string;
   removing?: boolean;
+  video?: boolean;
 }
 
 export function MediaDropzone({
@@ -15,30 +17,42 @@ export function MediaDropzone({
   onAdd,
   onRemove,
   onAltChange,
+  allowVideo = true,
 }: {
   items: MediaItem[];
   max: number;
   onAdd: (files: File[]) => void;
   onRemove: (key: string) => void;
   onAltChange?: (key: string, alt: string) => void;
+  allowVideo?: boolean;
 }) {
-  const room = max - items.length;
+  const hasVideo = items.some((m) => m.video);
+  // a video takes the whole post — no room for anything else alongside it
+  const room = hasVideo ? 0 : max - items.length;
 
   return (
     <div className="space-y-2.5">
       {items.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {items.map((m) => (
-            <div key={m.key} className="w-24">
+            <div key={m.key} className={m.video ? 'w-40' : 'w-24'}>
               <div className="relative">
-                <img
-                  src={m.url}
-                  alt={m.name ?? ''}
-                  className="size-24 rounded-lg border border-input object-cover"
-                />
+                {m.video ? (
+                  <video
+                    src={m.url}
+                    controls
+                    className="h-24 w-40 rounded-lg border border-input bg-black object-contain"
+                  />
+                ) : (
+                  <img
+                    src={m.url}
+                    alt={m.name ?? ''}
+                    className="size-24 rounded-lg border border-input object-cover"
+                  />
+                )}
                 <button
                   type="button"
-                  aria-label="Remove image"
+                  aria-label="Remove media"
                   disabled={m.removing}
                   onClick={() => onRemove(m.key)}
                   className="absolute -right-2 -top-2 grid size-5 place-items-center rounded-full border border-primary bg-background text-foreground shadow-sm hover:bg-secondary"
@@ -46,7 +60,7 @@ export function MediaDropzone({
                   <X className="size-3" />
                 </button>
               </div>
-              {onAltChange && (
+              {onAltChange && !m.video && (
                 <input
                   value={m.alt ?? ''}
                   onChange={(e) => onAltChange(m.key, e.target.value)}
@@ -61,7 +75,7 @@ export function MediaDropzone({
 
       {room > 0 && (
         <Dropzone
-          accept={{ 'image/*': [] }}
+          accept={allowVideo ? { 'image/*': [], ...VIDEO_ACCEPT } : { 'image/*': [] }}
           maxFiles={room}
           onDrop={(accepted) => onAdd(accepted)}
           src={undefined}
@@ -69,12 +83,15 @@ export function MediaDropzone({
         >
           <DropzoneEmptyState>
             <div className="flex flex-col items-center gap-1 py-1 text-muted-foreground">
-              <ImagePlus className="size-5" />
+              {allowVideo ? <Film className="size-5" /> : <ImagePlus className="size-5" />}
               <p className="text-sm">
-                Drop images or <span className="text-[color:var(--pf-brick)]">browse</span>
+                Drop {allowVideo ? 'images or a video' : 'images'} or{' '}
+                <span className="text-[color:var(--pf-brick)]">browse</span>
               </p>
               <p className="dateline">
-                {room} more · up to {max}
+                {items.length === 0 && allowVideo
+                  ? `up to ${max} images, or one video (max ${MAX_VIDEO_MB} MB)`
+                  : `${room} more · up to ${max}`}
               </p>
             </div>
           </DropzoneEmptyState>

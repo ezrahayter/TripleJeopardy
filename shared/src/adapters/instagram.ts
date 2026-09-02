@@ -1,4 +1,5 @@
 import { graphGet, graphPost, waitForContainer } from './meta-graph';
+import { isVideoMime } from './media';
 import type {
   CommentInput,
   CommentResult,
@@ -18,11 +19,17 @@ const MAX_ITEMS = 10; // carousel max
 
 function validate({ body, media }: { body: string; media: MediaInput[] }): ValidationResult {
   const errors: string[] = [];
-  if (media.length === 0) errors.push('Instagram requires at least one image.');
+  if (media.length === 0) errors.push('Instagram requires an image or a video.');
   if (media.length > MAX_ITEMS) errors.push(`Instagram carousels hold at most ${MAX_ITEMS} images.`);
   if (body.length > MAX_CAPTION) errors.push(`Caption is over the ${MAX_CAPTION}-character limit.`);
+  const videos = media.filter((m) => isVideoMime(m.mime));
+  if (videos.length > 1 || (videos.length === 1 && media.length > 1)) {
+    errors.push('Post a video on its own — one Reel per post.');
+  }
   for (const m of media) {
-    if (!m.mime.startsWith('image/')) errors.push(`Instagram (Phase 1) supports images only: ${m.mime}`);
+    if (!m.mime.startsWith('image/') && !isVideoMime(m.mime)) {
+      errors.push(`Unsupported media type for Instagram: ${m.mime}`);
+    }
     if (!m.url) errors.push('Instagram needs a fetchable media URL.');
   }
   return { ok: errors.length === 0, errors };
@@ -51,7 +58,16 @@ export const instagramAdapter: NetworkAdapter = {
 
     let creationId: string;
 
-    if (media.length === 1) {
+    const video = media.find((m) => isVideoMime(m.mime));
+    if (video) {
+      const container = await graphPost<{ id: string }>(`${igUserId}/media`, {
+        media_type: 'REELS',
+        video_url: video.url,
+        caption: body,
+        access_token: secret,
+      });
+      creationId = container.id;
+    } else if (media.length === 1) {
       const container = await graphPost<{ id: string }>(`${igUserId}/media`, {
         image_url: media[0]!.url,
         caption: body,
@@ -77,7 +93,7 @@ export const instagramAdapter: NetworkAdapter = {
       creationId = parent.id;
     }
 
-    await waitForContainer('graph', creationId, secret);
+    await waitForContainer('graph', creationId, secret, video ? { tries: 30, delayMs: 4000 } : undefined);
 
     const published = await graphPost<{ id: string }>(`${igUserId}/media_publish`, {
       creation_id: creationId,

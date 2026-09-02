@@ -65,8 +65,26 @@ function Avatar({
   );
 }
 
-function MediaGrid({ urls, rounded = 12 }: { urls: string[]; rounded?: number }) {
+function MediaGrid({
+  urls,
+  rounded = 12,
+  video = false,
+}: {
+  urls: string[];
+  rounded?: number;
+  video?: boolean;
+}) {
   if (urls.length === 0) return null;
+  if (video) {
+    return (
+      <video
+        src={urls[0]}
+        controls
+        className="w-full bg-black object-contain"
+        style={{ borderRadius: rounded, maxHeight: 430 }}
+      />
+    );
+  }
   if (urls.length === 1) {
     return (
       <img
@@ -101,6 +119,7 @@ interface Body {
   over: boolean;
   hasText: boolean;
   media: string[];
+  mediaIsVideo?: boolean;
   firstComment: string;
 }
 
@@ -138,7 +157,7 @@ function FeedPost({ b, network }: { b: Body; network: NetworkId }) {
 
           {b.media.length > 0 && (
             <div className="mt-2">
-              <MediaGrid urls={b.media} rounded={12} />
+              <MediaGrid urls={b.media} rounded={12} video={b.mediaIsVideo} />
             </div>
           )}
 
@@ -192,7 +211,7 @@ function FacebookPost({ b }: { b: Body }) {
 
       {b.media.length > 0 && (
         <div className={cn(b.hasText ? '' : 'mt-2.5')}>
-          <MediaGrid urls={b.media} rounded={0} />
+          <MediaGrid urls={b.media} rounded={0} video={b.mediaIsVideo} />
         </div>
       )}
 
@@ -231,11 +250,15 @@ function InstagramPost({ b }: { b: Body }) {
       </div>
 
       {b.media.length > 0 ? (
-        <img src={b.media[0]} alt="" className="aspect-square w-full object-cover" />
+        b.mediaIsVideo ? (
+          <video src={b.media[0]} controls className="aspect-square w-full bg-black object-contain" />
+        ) : (
+          <img src={b.media[0]} alt="" className="aspect-square w-full object-cover" />
+        )
       ) : (
         <div className="flex aspect-square w-full flex-col items-center justify-center gap-1.5 bg-[#fafafa] text-[#8e8e8e]">
           <ImageIcon className="size-7" />
-          <span className="text-[12px]">Instagram needs an image</span>
+          <span className="text-[12px]">Instagram needs an image or video</span>
         </div>
       )}
 
@@ -271,7 +294,11 @@ function VideoPost({ b, network }: { b: Body; network: NetworkId }) {
         className={cn('relative w-full', vertical ? 'aspect-[9/16] max-h-[440px]' : 'aspect-video')}
       >
         {b.media.length > 0 ? (
-          <img src={b.media[0]} alt="" className="size-full object-cover opacity-90" />
+          b.mediaIsVideo ? (
+            <video src={b.media[0]} controls className="size-full object-contain" />
+          ) : (
+            <img src={b.media[0]} alt="" className="size-full object-cover opacity-90" />
+          )
         ) : (
           <div className="grid size-full place-items-center bg-neutral-900 text-neutral-500">
             <span className="flex flex-col items-center gap-1.5 text-[12px]">
@@ -318,6 +345,7 @@ export function PostPreview({
   overrides = {},
   firstComment = '',
   mediaUrls,
+  mediaIsVideo = false,
 }: {
   networks: NetworkId[];
   accounts: Record<string, PreviewAccount | undefined>;
@@ -325,6 +353,7 @@ export function PostPreview({
   overrides?: Record<string, string>;
   firstComment?: string;
   mediaUrls: string[];
+  mediaIsVideo?: boolean;
 }) {
   const [active, setActive] = useState<NetworkId | null>(null);
   const current = active && networks.includes(active) ? active : (networks[0] ?? null);
@@ -354,6 +383,7 @@ export function PostPreview({
     over,
     hasText: effective.trim().length > 0,
     media: mediaUrls,
+    mediaIsVideo,
     firstComment,
   };
 

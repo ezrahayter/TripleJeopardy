@@ -1,4 +1,5 @@
 import { threadsGet, threadsPost, waitForContainer } from './meta-graph';
+import { isVideoMime } from './media';
 import type {
   CommentInput,
   CommentResult,
@@ -21,8 +22,14 @@ function validate({ body, media }: { body: string; media: MediaInput[] }): Valid
   if (!body.trim() && media.length === 0) errors.push('Nothing to post.');
   if ([...body].length > MAX_TEXT) errors.push(`Text is over the ${MAX_TEXT}-character Threads limit.`);
   if (media.length > MAX_ITEMS) errors.push(`Threads carousels hold at most ${MAX_ITEMS} items.`);
+  const videos = media.filter((m) => isVideoMime(m.mime));
+  if (videos.length > 1 || (videos.length === 1 && media.length > 1)) {
+    errors.push('Post a video on its own on Threads.');
+  }
   for (const m of media) {
-    if (!m.mime.startsWith('image/')) errors.push(`Threads (Phase 1) supports images only: ${m.mime}`);
+    if (!m.mime.startsWith('image/') && !isVideoMime(m.mime)) {
+      errors.push(`Unsupported media type for Threads: ${m.mime}`);
+    }
     if (!m.url) errors.push('Threads needs a fetchable media URL.');
   }
   return { ok: errors.length === 0, errors };
@@ -51,7 +58,16 @@ export const threadsAdapter: NetworkAdapter = {
 
     let creationId: string;
 
-    if (media.length === 0) {
+    const video = media.find((m) => isVideoMime(m.mime));
+    if (video) {
+      const c = await threadsPost<{ id: string }>(`${userId}/threads`, {
+        media_type: 'VIDEO',
+        video_url: video.url,
+        text: body,
+        access_token: secret,
+      });
+      creationId = c.id;
+    } else if (media.length === 0) {
       const c = await threadsPost<{ id: string }>(`${userId}/threads`, {
         media_type: 'TEXT',
         text: body,
@@ -86,7 +102,9 @@ export const threadsAdapter: NetworkAdapter = {
       creationId = parent.id;
     }
 
-    if (media.length > 0) await waitForContainer('threads', creationId, secret);
+    if (media.length > 0) {
+      await waitForContainer('threads', creationId, secret, video ? { tries: 30, delayMs: 4000 } : undefined);
+    }
 
     const published = await threadsPost<{ id: string }>(`${userId}/threads_publish`, {
       creation_id: creationId,

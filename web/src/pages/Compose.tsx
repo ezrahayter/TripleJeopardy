@@ -16,6 +16,7 @@ import { NetworkPicker } from '@/components/compose/NetworkPicker';
 import { PostPreview, type PreviewAccount } from '@/components/compose/PostPreview';
 import { SchedulePicker } from '@/components/compose/SchedulePicker';
 import { nextOpenSlot } from '@/lib/postingSlots';
+import { isVideoFile, isVideoUrl, MAX_VIDEO_MB } from '@/lib/media';
 import { MediaDropzone, type MediaItem } from '@/components/compose/MediaDropzone';
 import { MediaLibrary } from '@/components/compose/MediaLibrary';
 import { ComposeTools } from '@/components/compose/ComposeTools';
@@ -35,6 +36,7 @@ interface ExistingMedia {
   path: string;
   url: string;
   alt: string;
+  video: boolean;
 }
 
 type Mode = 'draft' | 'schedule' | 'now';
@@ -84,6 +86,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const [error, setError] = useState<string | null>(null);
 
   const totalImages = existing.length + files.length;
+  const hasVideo = existing.some((e) => e.video) || files.some(isVideoFile);
   const hasAccounts = accounts.length > 0;
   const campaign = campaigns.find((c) => c.id === campaignId);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -194,6 +197,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const activeSelected = selected.filter((s) => available.includes(s));
   const textFor = (id: NetworkId) => overrides[id]?.trim() || finalBody;
   const overLimit = activeSelected.filter((id) => countGraphemes(textFor(id)) > NETWORKS[id].limit);
+  const videoBlocked = hasVideo ? activeSelected.filter((id) => !NETWORKS[id].video) : [];
 
   const loadExistingMedia = useCallback(async (postId: string) => {
     const { data: rows } = await supabase
@@ -213,6 +217,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       path: r.storage_path as string,
       url: urlByPath.get(r.storage_path as string) ?? '',
       alt: (r.alt_text as string) ?? '',
+      video: isVideoUrl(r.storage_path as string),
     }));
     setExisting(list);
     setAlts((a) => {
@@ -306,9 +311,30 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   }
 
   function addFiles(list: File[]) {
+    const incomingVideo = list.find(isVideoFile);
+    if (incomingVideo) {
+      if (existing.length + files.length > 0) {
+        toast.error('A video takes the whole post — remove the other media first.');
+        return;
+      }
+      if (list.length > 1) {
+        toast.error('Add one video on its own.');
+        return;
+      }
+      if (incomingVideo.size > MAX_VIDEO_MB * 1024 * 1024) {
+        toast.error(`That video is over the ${MAX_VIDEO_MB} MB limit.`);
+        return;
+      }
+      setFiles([incomingVideo]);
+      return;
+    }
+    if (hasVideo) {
+      toast.error('Remove the video to add images.');
+      return;
+    }
     const room = MAX_IMAGES - existing.length - files.length;
     if (room <= 0) return;
-    setFiles((prev) => [...prev, ...list.slice(0, room)]);
+    setFiles((prev) => [...prev, ...list.filter((f) => !isVideoFile(f)).slice(0, room)]);
   }
 
   async function removeMedia(key: string) {
@@ -328,8 +354,20 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   }
 
   const mediaItems: MediaItem[] = [
-    ...existing.map((e) => ({ key: `e:${e.id}`, url: e.url, alt: alts[`e:${e.id}`] ?? '', removing: busy })),
-    ...files.map((f, i) => ({ key: `f:${i}`, url: previews[i] ?? '', name: f.name, alt: alts[`f:${i}`] ?? '' })),
+    ...existing.map((e) => ({
+      key: `e:${e.id}`,
+      url: e.url,
+      alt: alts[`e:${e.id}`] ?? '',
+      removing: busy,
+      video: e.video,
+    })),
+    ...files.map((f, i) => ({
+      key: `f:${i}`,
+      url: previews[i] ?? '',
+      name: f.name,
+      alt: alts[`f:${i}`] ?? '',
+      video: isVideoFile(f),
+    })),
   ];
 
   const setAlt = (key: string, alt: string) => setAlts((a) => ({ ...a, [key]: alt }));
@@ -350,6 +388,14 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
     }
     if (mode !== 'draft' && overLimit.length > 0) {
       setError(`Too long for ${overLimit.map((n) => NETWORKS[n].label).join(', ')}.`);
+      return;
+    }
+    if (mode !== 'draft' && videoBlocked.length > 0) {
+      setError(
+        `${videoBlocked.map((n) => NETWORKS[n].label).join(', ')} can't post video yet — unselect ${
+          videoBlocked.length > 1 ? 'them' : 'it'
+        }.`,
+      );
       return;
     }
 
@@ -538,6 +584,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
               selected={activeSelected}
               onToggle={toggleNetwork}
               text={body}
+              incompatible={videoBlocked}
             />
           </div>
 
@@ -763,10 +810,10 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label>Images ({totalImages}/{MAX_IMAGES})</Label>
+              <Label>{hasVideo ? 'Video' : `Images (${totalImages}/${MAX_IMAGES})`}</Label>
               <MediaLibrary
                 campaignId={campaignId}
-                disabled={busy || totalImages >= MAX_IMAGES}
+                disabled={busy || hasVideo || totalImages >= MAX_IMAGES}
                 onPick={async (it) => {
                   try {
                     const res = await fetch(it.url);
@@ -786,6 +833,11 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
               onAltChange={setAlt}
               onRemove={removeMedia}
             />
+            {videoBlocked.length > 0 && (
+              <p className="text-xs text-destructive">
+                {videoBlocked.map((n) => NETWORKS[n].label).join(', ')} can't post video yet.
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -848,7 +900,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
               Save as draft
             </Button>
             <Button
-              disabled={busy || !scheduleAt || overLimit.length > 0}
+              disabled={busy || !scheduleAt || overLimit.length > 0 || videoBlocked.length > 0}
               onClick={() => void save('schedule')}
             >
               {busy ? 'Working…' : editId ? 'Save to calendar' : 'Add to calendar'}
@@ -856,7 +908,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
             {hasAccounts && (
               <Button
                 variant="action"
-                disabled={busy || overLimit.length > 0}
+                disabled={busy || overLimit.length > 0 || videoBlocked.length > 0}
                 onClick={() => void save('now')}
               >
                 Publish now
@@ -873,6 +925,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
             overrides={overrides}
             firstComment={firstComment}
             mediaUrls={mediaUrls}
+            mediaIsVideo={hasVideo}
           />
         </div>
       </div>

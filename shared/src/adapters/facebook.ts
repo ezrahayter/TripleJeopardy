@@ -1,4 +1,5 @@
 import { graphGet, graphPost } from './meta-graph';
+import { isVideoMime } from './media';
 import type {
   CommentInput,
   CommentResult,
@@ -20,8 +21,14 @@ function validate({ body, media }: { body: string; media: MediaInput[] }): Valid
   const errors: string[] = [];
   if (!body.trim() && media.length === 0) errors.push('Nothing to post.');
   if (body.length > MAX_TEXT) errors.push('Text is too long for a Facebook post.');
+  const videos = media.filter((m) => isVideoMime(m.mime));
+  if (videos.length > 0 && media.length > 1) {
+    errors.push('Attach a video on its own, not alongside photos.');
+  }
   for (const m of media) {
-    if (!m.mime.startsWith('image/')) errors.push(`Facebook (Phase 1) supports images only: ${m.mime}`);
+    if (!m.mime.startsWith('image/') && !isVideoMime(m.mime)) {
+      errors.push(`Unsupported media type for Facebook: ${m.mime}`);
+    }
     if (!m.url) errors.push('Facebook needs a fetchable media URL.');
   }
   return { ok: errors.length === 0, errors };
@@ -50,7 +57,16 @@ export const facebookAdapter: NetworkAdapter = {
 
     let postId: string;
 
-    if (media.length === 0) {
+    const video = media.find((m) => isVideoMime(m.mime));
+    if (video) {
+      // Page video upload — Graph pulls the file itself from file_url
+      const res = await graphPost<{ id: string; post_id?: string }>(`${pageId}/videos`, {
+        file_url: video.url,
+        description: body,
+        access_token: secret,
+      });
+      postId = res.post_id ?? res.id;
+    } else if (media.length === 0) {
       const res = await graphPost<{ id: string }>(`${pageId}/feed`, {
         message: body,
         access_token: secret,

@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { decryptSecret } from '../../shared/src/crypto';
 import { getAdapter } from '../../shared/src/adapters';
 import type { MediaInput } from '../../shared/src/adapters';
+import { guessMime, isVideoMime } from '../../shared/src/adapters/media';
 import type { Env } from './index';
 
 const BATCH = 10;
@@ -72,10 +73,12 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
     .eq('post_id', post.id)
     .order('sort');
 
-  const wantsBytes = account.network === 'bluesky';
   const media: MediaInput[] = [];
   for (const row of mediaRows ?? []) {
     const mime = guessMime(row.storage_path);
+    // Bluesky takes raw image bytes; everything else (and all video) is handed
+    // off as a signed URL the network fetches itself.
+    const wantsBytes = account.network === 'bluesky' && !isVideoMime(mime);
     if (wantsBytes) {
       const { data: file, error: dlErr } = await supa.storage
         .from('media')
@@ -142,12 +145,4 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
   }
 
   return result.url;
-}
-
-function guessMime(path: string): string {
-  const ext = path.split('.').pop()?.toLowerCase() ?? '';
-  if (ext === 'png') return 'image/png';
-  if (ext === 'gif') return 'image/gif';
-  if (ext === 'webp') return 'image/webp';
-  return 'image/jpeg';
 }

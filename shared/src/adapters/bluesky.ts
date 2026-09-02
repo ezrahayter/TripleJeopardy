@@ -96,7 +96,11 @@ function validate({ body, media }: { body: string; media: MediaInput[] }): Valid
   }
   if (media.length > MAX_IMAGES) errors.push(`Bluesky allows at most ${MAX_IMAGES} images.`);
   for (const m of media) {
-    if (!m.mime.startsWith('image/')) errors.push(`Unsupported media type: ${m.mime}`);
+    if (m.mime.startsWith('video/')) {
+      errors.push('Video posting to Bluesky is not supported yet — leave Bluesky unselected for video.');
+    } else if (!m.mime.startsWith('image/')) {
+      errors.push(`Unsupported media type: ${m.mime}`);
+    }
     if (m.bytes && m.bytes.byteLength > MAX_IMAGE_BYTES) {
       errors.push('Each image must be under 1 MB.');
     }
