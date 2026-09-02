@@ -27,12 +27,37 @@ interface Pub {
 
 const WEEK_MS = 7 * 86400000;
 
+interface DayPoint {
+  day: string;
+  engagement: number;
+  reach: number;
+}
+
 export function Analytics({ orgId }: { orgId: string }) {
   const [rows, setRows] = useState<Pub[]>([]);
+  const [trend, setTrend] = useState<DayPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
+
+    const since = new Date();
+    since.setDate(since.getDate() - 44);
+    const { data: snaps } = await supabase
+      .from('metric_snapshots')
+      .select('captured_on, metrics')
+      .eq('org_id', orgId)
+      .gte('captured_on', since.toISOString().slice(0, 10))
+      .order('captured_on');
+    const byDay = new Map<string, DayPoint>();
+    for (const s of (snaps as Array<{ captured_on: string; metrics: Metrics }>) ?? []) {
+      const d = byDay.get(s.captured_on) ?? { day: s.captured_on, engagement: 0, reach: 0 };
+      d.engagement += engagementOf(s.metrics ?? {});
+      d.reach += reachOf(s.metrics ?? {});
+      byDay.set(s.captured_on, d);
+    }
+    setTrend([...byDay.values()]);
+
     const { data } = await supabase
       .from('post_targets')
       .select(
@@ -161,6 +186,36 @@ export function Analytics({ orgId }: { orgId: string }) {
               </Card>
             ))}
           </div>
+
+          {trend.length > 1 && (
+            <Card className="gap-0 py-0">
+              <CardHeader className="py-5">
+                <CardTitle className="text-base">Engagement trend</CardTitle>
+              </CardHeader>
+              <CardContent className="pb-5">
+                {(() => {
+                  const max = Math.max(1, ...trend.map((d) => d.engagement));
+                  return (
+                    <div className="flex items-end gap-0.5" style={{ height: 90 }}>
+                      {trend.map((d) => (
+                        <div
+                          key={d.day}
+                          title={`${d.day}: ${fmtCount(d.engagement)} engagement${
+                            d.reach ? `, ${fmtCount(d.reach)} reach` : ''
+                          }`}
+                          className="flex-1 rounded-sm bg-[color:var(--pf-olive)]"
+                          style={{ height: `${Math.max(2, (d.engagement / max) * 82)}px` }}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
+                <div className="dateline mt-2">
+                  {trend[0]?.day} → {trend[trend.length - 1]?.day} · total engagement per day
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {stats.top.length > 0 && (
             <Card className="gap-0 overflow-hidden py-0">

@@ -11,6 +11,7 @@ interface Target {
   id: string;
   social_account_id: string;
   external_post_id: string;
+  org_id: string;
 }
 
 export async function runMetricsSync(env: Env): Promise<{ checked: number; synced: number }> {
@@ -59,6 +60,17 @@ export async function runMetricsSync(env: Env): Promise<{ checked: number; synce
         .from('post_targets')
         .update({ metrics, metrics_synced_at: now() })
         .eq('id', t.id);
+
+      // one snapshot per target per UTC day — the last sync of the day wins
+      await supa.from('metric_snapshots').upsert(
+        {
+          org_id: t.org_id,
+          post_target_id: t.id,
+          captured_on: new Date().toISOString().slice(0, 10),
+          metrics,
+        },
+        { onConflict: 'post_target_id,captured_on' },
+      );
       synced++;
     } catch (e) {
       // stamp anyway so a persistently-failing target waits the 6h gate
