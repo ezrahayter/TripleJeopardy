@@ -64,6 +64,9 @@ export interface Campaign {
   publishing_paused: boolean;
   review_nudge_hours: number;
   posting_slots: PostingSlot[];
+  report_token: string | null;
+  report_recap: string | null;
+  report_recap_at: string | null;
   created_at: string;
 }
 

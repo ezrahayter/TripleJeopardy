@@ -50,9 +50,38 @@ export function CampaignApproval({
   const [copied, setCopied] = useState(false);
   const [icalCopied, setIcalCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [reportToken, setReportToken] = useState(campaign.report_token);
+  const [recapAt, setRecapAt] = useState(campaign.report_recap_at);
+  const [reportBusy, setReportBusy] = useState<string | null>(null);
 
   const portalUrl = `${window.location.origin}/review/${reviewToken}`;
   const icalUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/calendar-feed?token=${reviewToken}`;
+  const reportUrl = reportToken ? `${window.location.origin}/report/${reportToken}` : null;
+
+  async function report(action: 'setup' | 'revoke' | 'recap') {
+    setReportBusy(action);
+    try {
+      const { data, error } = await supabase.functions.invoke('report', {
+        body: { action, campaign_id: campaign.id },
+      });
+      if (error) throw new Error(error.message);
+      const out = (data as { token?: string; recapAt?: string; error?: string }) ?? {};
+      if (out.error) throw new Error(out.error);
+      if (action === 'setup') setReportToken(out.token ?? null);
+      if (action === 'revoke') {
+        setReportToken(null);
+        setRecapAt(null);
+      }
+      if (action === 'recap') {
+        setRecapAt(out.recapAt ?? null);
+        toast.success('Summary updated');
+      }
+    } catch (e) {
+      toast.error(String((e as Error)?.message ?? e));
+    } finally {
+      setReportBusy(null);
+    }
+  }
 
   async function rotate() {
     if (!window.confirm('Make a new link? The old one stops working immediately.')) return;
@@ -288,6 +317,61 @@ export function CampaignApproval({
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 Add this in Google or Apple Calendar to follow scheduled posts and key dates.
+              </p>
+            </div>
+
+            <div className="border-t border-border pt-3">
+              <p className="dateline mb-1.5">Shareable report</p>
+              {reportUrl ? (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input readOnly value={reportUrl} onFocus={(e) => e.target.select()} className="text-xs" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void navigator.clipboard.writeText(reportUrl)}
+                    >
+                      <Copy className="size-4" /> Copy
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={reportBusy !== null}
+                      onClick={() => void report('recap')}
+                    >
+                      {reportBusy === 'recap' ? 'Writing…' : recapAt ? 'Refresh summary' : 'Write summary'}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => void report('revoke')}
+                      className="dateline text-[color:var(--pf-brick)]"
+                    >
+                      Turn off
+                    </button>
+                  </div>
+                  {recapAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Summary written {new Date(recapAt).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={reportBusy !== null}
+                  onClick={() => void report('setup')}
+                >
+                  {reportBusy === 'setup' ? 'Creating…' : 'Create a report link'}
+                </Button>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                A read-only performance page — metrics update live; the summary is written on demand.
               </p>
             </div>
           </div>

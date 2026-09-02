@@ -178,13 +178,15 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
 - ✅ **Client calendar** — "What's coming up" timeline on the review portal
 - ✅ **Request triage flags** — New requests show Short-notice / Media-pending /
   Wants-approval badges (the spreadsheet's board columns, derived)
+- ✅ **Revision-round tracking** — approval ledger heads with the round count
+  and tags each send-for-review
+- ✅ **Shareable report** — `report` edge fn + public `/report/<token>` page
+  (migration 0027); live metrics + on-demand AI recap, managed in Settings
 
 **Remaining:**
-- **Approval:** inline comments on the caption/image (Planable-style),
-  revision-round tracking UI.
+- **Approval:** inline comments on the caption/image (Planable-style).
 - **Compose/schedule:** recurring posts, thread/carousel composer.
-- **Analytics:** plain-language campaign recap, scheduled report emails,
-  shareable live report link.
+- **Analytics:** scheduled report emails.
 - **Content sourcing:** RSS → drafts, evergreen recycling.
 - **Media:** media library, per-network aspect-ratio crop (Kibo `image-crop`
   vendored, unused), video passthrough.
