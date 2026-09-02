@@ -129,6 +129,23 @@ Deno.serve(async (req: Request) => {
       }));
     }
 
+    async function loadScheduled() {
+      const { data } = await admin
+        .from('posts')
+        .select('id, body, scheduled_at, status')
+        .eq('campaign_id', campaign.id)
+        .in('status', ['scheduled', 'publishing', 'published'])
+        .not('scheduled_at', 'is', null)
+        .gte('scheduled_at', new Date(Date.now() - 7 * 864e5).toISOString())
+        .order('scheduled_at');
+      return (data ?? []).map((p) => ({
+        id: p.id as string,
+        body: p.body as string,
+        scheduled_at: p.scheduled_at as string,
+        status: p.status as string,
+      }));
+    }
+
     if (req.method === 'GET') {
       return json({
         campaign: campaign.name,
@@ -136,6 +153,7 @@ Deno.serve(async (req: Request) => {
         requestsEnabled: campaign.requests_enabled !== false,
         networks: await connectedNetworks(),
         pending: await loadPending(),
+        scheduled: await loadScheduled(),
         recent: await loadRecent(),
       });
     }

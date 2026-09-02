@@ -12,6 +12,12 @@ interface PendingPost {
   media: string[];
   lastNote: string | null;
 }
+interface ScheduledPost {
+  id: string;
+  body: string;
+  scheduled_at: string;
+  status: string;
+}
 interface RecentItem {
   event: string;
   note: string | null;
@@ -24,6 +30,7 @@ interface Data {
   requestsEnabled: boolean;
   networks: string[];
   pending: PendingPost[];
+  scheduled: ScheduledPost[];
   recent: RecentItem[];
   error?: string;
 }
@@ -138,6 +145,38 @@ export function Review() {
               {data.pending.map((p, i) => (
                 <ReviewCard key={p.id} post={p} index={i + 1} onDecide={decide} />
               ))}
+            </div>
+          )}
+
+          {!requesting && data.scheduled && data.scheduled.length > 0 && (
+            <div className="mt-10">
+              <h2 className="dateline mb-3">What's coming up</h2>
+              <ol className="relative ml-1 space-y-4 border-l border-border pl-5">
+                {data.scheduled.map((p) => {
+                  const past = new Date(p.scheduled_at).getTime() < Date.now();
+                  return (
+                    <li key={p.id} className="relative">
+                      <span
+                        className={`absolute -left-[26px] top-1 size-[9px] rounded-full border-[1.5px] ${
+                          past
+                            ? 'border-[color:var(--pf-olive)] bg-[color:var(--pf-olive)]'
+                            : 'border-input bg-background'
+                        }`}
+                      />
+                      <div className="dateline">
+                        {whenLabel(p.scheduled_at)}
+                        {p.status === 'published' ? ' · posted' : past ? ' · posting' : ''}
+                      </div>
+                      <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-sm">
+                        {p.body || <span className="text-muted-foreground">(no text)</span>}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ol>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Subscribe in your calendar app — ask {data.reviewer ?? 'your manager'} for the link.
+              </p>
             </div>
           )}
 
