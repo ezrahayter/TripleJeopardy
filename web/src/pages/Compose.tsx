@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
-import type { Campaign, PostStatus } from '@shared/types';
+import type { Campaign, PostStatus, PostType } from '@shared/types';
 import {
   ALL_NETWORKS,
   NETWORKS,
@@ -63,6 +63,11 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const [firstComment, setFirstComment] = useState('');
   const [internalNote, setInternalNote] = useState('');
   const [alts, setAlts] = useState<Record<string, string>>({});
+  const [postType, setPostType] = useState<PostType>('standard');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [fundGoal, setFundGoal] = useState('');
+  const [needsSource, setNeedsSource] = useState(false);
+  const [sourceUrl, setSourceUrl] = useState('');
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [overridesOpen, setOverridesOpen] = useState(false);
   const [useDisclaimer, setUseDisclaimer] = useState(true);
@@ -162,7 +167,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
     void (async () => {
       const { data, error } = await supabase
         .from('posts')
-        .select('body, status, approval_state, campaign_id, scheduled_at, first_comment, internal_note, body_overrides')
+        .select('body, status, approval_state, campaign_id, scheduled_at, first_comment, internal_note, post_type, link_url, fundraise_goal, needs_source, source_url, body_overrides')
         .eq('id', editId)
         .single();
       if (error || !data) {
@@ -173,6 +178,11 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       setBody(data.body ?? '');
       setFirstComment((data.first_comment as string) ?? '');
       setInternalNote((data.internal_note as string) ?? '');
+      setPostType(((data.post_type as PostType) ?? 'standard'));
+      setLinkUrl((data.link_url as string) ?? '');
+      setFundGoal(data.fundraise_goal != null ? String(data.fundraise_goal) : '');
+      setNeedsSource(!!data.needs_source);
+      setSourceUrl((data.source_url as string) ?? '');
       const ov = (data.body_overrides as Record<string, string>) ?? {};
       setOverrides(ov);
       if (Object.keys(ov).length > 0) setOverridesOpen(true);
@@ -272,11 +282,20 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       const v = overrides[id]?.trim();
       if (v) cleanOverrides[id] = v;
     }
+    if (needsSource && !sourceUrl.trim()) {
+      setError('This post is marked as needing a source — add one before saving.');
+      return;
+    }
     const fields = {
       body: finalBody,
       campaign_id: campaignId,
       first_comment: firstComment.trim() || null,
       internal_note: internalNote.trim() || null,
+      post_type: postType,
+      link_url: linkUrl.trim() || null,
+      fundraise_goal: postType === 'fundraising' && fundGoal ? Number(fundGoal) : null,
+      needs_source: needsSource,
+      source_url: sourceUrl.trim() || null,
       body_overrides: cleanOverrides,
     };
 
@@ -493,6 +512,72 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
               onChange={(e) => setInternalNote(e.target.value)}
               placeholder="e.g. hold until the endorsement is public"
             />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="post-type">Post type</Label>
+              <Select value={postType} onValueChange={(v) => setPostType(v as PostType)}>
+                <SelectTrigger id="post-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">Standard</SelectItem>
+                  <SelectItem value="fundraising">Fundraising</SelectItem>
+                  <SelectItem value="event">Event</SelectItem>
+                  <SelectItem value="rapid_response">Rapid response</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {(postType === 'fundraising' || postType === 'event') && (
+              <div className="space-y-1.5">
+                <Label htmlFor="link-url">
+                  {postType === 'fundraising' ? 'Donate link' : 'RSVP link'}
+                </Label>
+                <input
+                  id="link-url"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder={
+                    postType === 'fundraising' ? 'secure.actblue.com/donate/…' : 'mobilize.us/…'
+                  }
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                />
+              </div>
+            )}
+            {postType === 'fundraising' && (
+              <div className="space-y-1.5">
+                <Label htmlFor="fund-goal">Goal ($)</Label>
+                <input
+                  id="fund-goal"
+                  type="number"
+                  min={0}
+                  value={fundGoal}
+                  onChange={(e) => setFundGoal(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={needsSource}
+                onChange={(e) => setNeedsSource(e.target.checked)}
+                className="accent-[color:var(--pf-coral)]"
+              />
+              Makes a factual claim — needs a source before review
+            </label>
+            {needsSource && (
+              <input
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                placeholder="Link to the source"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+              />
+            )}
           </div>
 
           <div className="space-y-1.5">

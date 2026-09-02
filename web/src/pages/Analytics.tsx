@@ -36,10 +36,17 @@ interface DayPoint {
 export function Analytics({ orgId }: { orgId: string }) {
   const [rows, setRows] = useState<Pub[]>([]);
   const [trend, setTrend] = useState<DayPoint[]>([]);
+  const [spend, setSpend] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
+
+    const { data: boosts } = await supabase
+      .from('post_boosts')
+      .select('amount')
+      .eq('org_id', orgId);
+    setSpend(((boosts as { amount: number }[]) ?? []).reduce((s, b) => s + (b.amount ?? 0), 0));
 
     const since = new Date();
     since.setDate(since.getDate() - 44);
@@ -155,6 +162,7 @@ export function Analytics({ orgId }: { orgId: string }) {
     ...(stats.hasMetrics && stats.totalReach > 0
       ? [{ label: 'Reach', value: fmtCount(stats.totalReach) }]
       : []),
+    ...(spend > 0 ? [{ label: 'Paid spend', value: `$${fmtCount(spend)}` }] : []),
   ];
 
   return (

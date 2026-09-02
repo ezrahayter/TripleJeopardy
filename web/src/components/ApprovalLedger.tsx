@@ -71,6 +71,18 @@ export function ApprovalLedger({
   async function sendForReview() {
     setBusy(true);
     setErr(null);
+
+    const { data: check } = await supabase
+      .from('posts')
+      .select('needs_source, source_url')
+      .eq('id', post.id)
+      .maybeSingle();
+    if (check?.needs_source && !check.source_url?.trim()) {
+      setErr('This post is marked as needing a source. Add one in the composer first.');
+      setBusy(false);
+      return;
+    }
+
     const { error } = await supabase
       .from('posts')
       .update({ approval_state: 'pending' })

@@ -8,6 +8,21 @@ export type Network = 'bluesky' | 'facebook' | 'instagram' | 'threads';
 /** Networks connected via OAuth rather than a pasted credential. */
 export const OAUTH_NETWORKS: Network[] = ['facebook', 'instagram', 'threads'];
 
+export type PostType = 'standard' | 'fundraising' | 'event' | 'rapid_response';
+
+export interface PostBoost {
+  id: string;
+  org_id: string;
+  post_id: string;
+  platform: string;
+  amount: number;
+  started_on: string | null;
+  ended_on: string | null;
+  audience: string | null;
+  note: string | null;
+  created_at: string;
+}
+
 export type PostStatus =
   | 'draft'
   | 'scheduled'
@@ -98,6 +113,12 @@ export interface Post {
   scheduled_at: string | null;
   first_comment: string | null;
   internal_note: string | null;
+  post_type: PostType;
+  link_url: string | null;
+  fundraise_goal: number | null;
+  fundraise_raised: number | null;
+  needs_source: boolean;
+  source_url: string | null;
   body_overrides: Record<string, string>;
   created_at: string;
   updated_at: string;
