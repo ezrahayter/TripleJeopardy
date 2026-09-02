@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Hash, Link2, Smile, Plus, X } from 'lucide-react';
+import { Hash, Link2, Loader2, Smile, Sparkles, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import type { Snippet } from '@shared/types';
@@ -21,13 +21,40 @@ export function ComposeTools({
   orgId,
   campaignId,
   campaignName,
+  currentText,
   onInsert,
+  onReplace,
 }: {
   orgId: string;
   campaignId: string;
   campaignName: string;
+  currentText: string;
   onInsert: (text: string) => void;
+  onReplace: (text: string) => void;
 }) {
+  const [aiBusy, setAiBusy] = useState<string | null>(null);
+
+  async function ai(task: string, ctx: Record<string, unknown>, mode: 'replace' | 'insert') {
+    if (!currentText.trim()) {
+      toast.error('Write a note or a draft first.');
+      return;
+    }
+    setAiBusy(task + JSON.stringify(ctx));
+    try {
+      const { data, error } = await supabase.functions.invoke('ai', {
+        body: { task, input: currentText, context: ctx },
+      });
+      if (error) throw new Error(error.message);
+      const out = (data as { text?: string; error?: string }) ?? {};
+      if (out.error) throw new Error(out.error);
+      if (out.text) (mode === 'replace' ? onReplace : onInsert)(out.text);
+    } catch (e) {
+      toast.error(String((e as Error)?.message ?? e));
+    } finally {
+      setAiBusy(null);
+    }
+  }
+
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [newLabel, setNewLabel] = useState('');
   const [newBody, setNewBody] = useState('');
@@ -70,8 +97,43 @@ export function ComposeTools({
     await load();
   }
 
+  const aiItems: { label: string; task: string; ctx: Record<string, unknown>; mode: 'replace' | 'insert' }[] = [
+    { label: 'Write from my notes', task: 'caption', ctx: {}, mode: 'replace' },
+    { label: 'Rewrite it', task: 'rewrite', ctx: {}, mode: 'replace' },
+    { label: 'Make it punchier', task: 'tone', ctx: { tone: 'punchier and more urgent' }, mode: 'replace' },
+    { label: 'Make it shorter', task: 'tone', ctx: { tone: 'shorter — half the length' }, mode: 'replace' },
+    { label: 'Warmer tone', task: 'tone', ctx: { tone: 'warmer and more personal' }, mode: 'replace' },
+    { label: 'Suggest hashtags', task: 'hashtags', ctx: {}, mode: 'insert' },
+  ];
+
   return (
     <div className="flex flex-wrap items-center gap-1.5">
+      {/* AI */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" size="sm">
+            {aiBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+            AI
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-1" align="start">
+          {aiItems.map((it) => (
+            <button
+              key={it.label}
+              type="button"
+              disabled={!!aiBusy}
+              onClick={() => void ai(it.task, it.ctx, it.mode)}
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-secondary disabled:opacity-50"
+            >
+              {aiBusy === it.task + JSON.stringify(it.ctx) && (
+                <Loader2 className="size-3 animate-spin" />
+              )}
+              {it.label}
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
+
       {/* Snippets */}
       <Popover>
         <PopoverTrigger asChild>

@@ -28,5 +28,8 @@ verify_jwt = false
 [functions.og-fetch]
 verify_jwt = false
 
+[functions.ai]
+verify_jwt = false
+
 [functions.review]
 verify_jwt = false

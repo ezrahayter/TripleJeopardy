@@ -387,6 +387,7 @@ export function PostDetailSheet({
                     campaign_id: post.campaign.id,
                     approval_state: post.approval_state,
                   }}
+                  draftBody={post.body}
                   campaign={{
                     approval_mode: post.campaign.approval_mode,
                     approver_name: post.campaign.approver_name,

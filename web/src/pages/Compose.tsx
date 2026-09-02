@@ -70,6 +70,8 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const [sourceUrl, setSourceUrl] = useState('');
   const [fromLink, setFromLink] = useState('');
   const [fromBusy, setFromBusy] = useState(false);
+  const [rapidBusy, setRapidBusy] = useState(false);
+  const [rapidOptions, setRapidOptions] = useState<string[]>([]);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [overridesOpen, setOverridesOpen] = useState(false);
   const [useDisclaimer, setUseDisclaimer] = useState(true);
@@ -96,6 +98,28 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       return next;
     });
   }, []);
+  async function draftRapid() {
+    if (!body.trim()) {
+      toast.error('Describe what happened first — a headline or a few notes.');
+      return;
+    }
+    setRapidBusy(true);
+    setRapidOptions([]);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai', {
+        body: { task: 'rapid', input: body },
+      });
+      if (error) throw new Error(error.message);
+      const out = (data as { options?: string[]; error?: string }) ?? {};
+      if (out.error) throw new Error(out.error);
+      setRapidOptions(out.options ?? []);
+    } catch (e) {
+      toast.error(String((e as Error)?.message ?? e));
+    } finally {
+      setRapidBusy(false);
+    }
+  }
+
   async function pullFromLink() {
     setFromBusy(true);
     try {
@@ -461,7 +485,9 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
                 orgId={orgId}
                 campaignId={campaignId}
                 campaignName={campaign?.name ?? 'Your campaign'}
+                currentText={body}
                 onInsert={insertIntoBody}
+                onReplace={setBody}
               />
             </div>
             <Textarea
@@ -613,6 +639,44 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
               </div>
             )}
           </div>
+
+          {postType === 'rapid_response' && (
+            <div className="space-y-2 rounded-md border border-border bg-secondary/30 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium">Draft rapid-response options</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={rapidBusy}
+                  onClick={() => void draftRapid()}
+                >
+                  {rapidBusy ? 'Drafting…' : 'Draft 3 options'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Uses the text above as the situation. Pick one to load it into the post.
+              </p>
+              {rapidOptions.length > 0 && (
+                <ul className="space-y-1.5">
+                  {rapidOptions.map((opt, i) => (
+                    <li key={i}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBody(opt);
+                          setRapidOptions([]);
+                        }}
+                        className="w-full whitespace-pre-wrap rounded-md border border-border bg-background p-2.5 text-left text-[13px] hover:border-input"
+                      >
+                        {opt}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <label className="flex cursor-pointer items-center gap-2 text-sm">

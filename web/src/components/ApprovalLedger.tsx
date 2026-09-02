@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, Loader2, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import type { ApprovalEvent, ApprovalMode, ApprovalState } from '@shared/types';
 import { NETWORKS, type NetworkId } from '@/lib/networks';
@@ -24,9 +25,11 @@ function actorName(actor: string | null, approverName: string | null) {
 export function ApprovalLedger({
   post,
   campaign,
+  draftBody,
   onChange,
 }: {
   post: { id: string; campaign_id: string; approval_state: ApprovalState };
+  draftBody?: string;
   campaign: {
     approval_mode: ApprovalMode;
     approver_name: string | null;
@@ -39,6 +42,30 @@ export function ApprovalLedger({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [edits, setEdits] = useState<string | null>(null);
+  const [translating, setTranslating] = useState(false);
+
+  async function translateFeedback(note: string) {
+    if (!draftBody?.trim()) {
+      toast.error('Open the draft first.');
+      return;
+    }
+    setTranslating(true);
+    setEdits(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai', {
+        body: { task: 'feedback', input: draftBody, context: { note } },
+      });
+      if (error) throw new Error(error.message);
+      const out = (data as { text?: string; error?: string }) ?? {};
+      if (out.error) throw new Error(out.error);
+      setEdits(out.text ?? '');
+    } catch (e) {
+      toast.error(String((e as Error)?.message ?? e));
+    } finally {
+      setTranslating(false);
+    }
+  }
 
   const load = useCallback(async () => {
     const { data: ev } = await supabase
@@ -149,6 +176,28 @@ export function ApprovalLedger({
                   <p className="mt-1.5 border-l-2 border-destructive pl-2.5 text-[13px] italic text-[color:var(--pf-ink-soft)]">
                     &ldquo;{e.note}&rdquo;
                   </p>
+                )}
+                {e.note && e.event === 'changes_requested' && draftBody && (
+                  <div className="mt-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={translating}
+                      onClick={() => void translateFeedback(e.note!)}
+                    >
+                      {translating ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="size-3.5" />
+                      )}
+                      Turn into an edit list
+                    </Button>
+                    {edits && (
+                      <div className="mt-2 whitespace-pre-wrap rounded-md border border-border bg-secondary/40 p-2.5 text-[13px]">
+                        {edits}
+                      </div>
+                    )}
+                  </div>
                 )}
               </li>
             );
