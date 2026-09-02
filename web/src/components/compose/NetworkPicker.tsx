@@ -29,7 +29,7 @@ export function NetworkPicker({
             type="button"
             aria-pressed={on}
             onClick={() => onToggle(id)}
-            title={bad ? `${n.label} can't post video yet` : undefined}
+            title={bad ? `${n.label} doesn't support this post` : undefined}
             className={cn(
               'group flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors',
               bad

@@ -130,8 +130,13 @@ export interface Post {
   needs_source: boolean;
   source_url: string | null;
   body_overrides: Record<string, string>;
+  thread_parts: ThreadPart[];
   created_at: string;
   updated_at: string;
+}
+
+export interface ThreadPart {
+  body: string;
 }
 
 export interface ApprovalEvent {
@@ -217,4 +222,6 @@ export interface PostTarget {
   metrics_synced_at: string | null;
   comment_external_id: string | null;
   comment_error: string | null;
+  thread_posted: number;
+  thread_error: string | null;
 }

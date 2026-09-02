@@ -74,7 +74,9 @@ Deno.serve(async (req: Request) => {
       return [...new Set((data ?? []).map((r) => r.network as string))];
     }
 
-    async function withMedia(posts: { id: string; body: string; scheduled_at: string | null }[]) {
+    async function withMedia(
+      posts: { id: string; body: string; scheduled_at: string | null; thread_parts?: unknown }[],
+    ) {
       const out = [];
       for (const p of posts) {
         const { data: mediaRows } = await admin
@@ -104,7 +106,16 @@ Deno.serve(async (req: Request) => {
           .eq('post_id', p.id)
           .order('created_at');
 
-        out.push({ ...p, media, lastNote: ev?.note ?? null, comments: comments ?? [] });
+        const threadParts = Array.isArray(p.thread_parts)
+          ? (p.thread_parts as Array<{ body?: string }>).map((x) => x?.body ?? '').filter(Boolean)
+          : [];
+        out.push({
+          ...p,
+          media,
+          threadParts,
+          lastNote: ev?.note ?? null,
+          comments: comments ?? [],
+        });
       }
       return out;
     }
@@ -112,7 +123,7 @@ Deno.serve(async (req: Request) => {
     async function loadPending() {
       const { data } = await admin
         .from('posts')
-        .select('id, body, scheduled_at')
+        .select('id, body, scheduled_at, thread_parts')
         .eq('campaign_id', campaign.id)
         .eq('approval_state', 'pending')
         .order('scheduled_at', { nullsFirst: false });

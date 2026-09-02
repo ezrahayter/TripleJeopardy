@@ -7,6 +7,7 @@ import type {
   PostMetrics,
   PublishInput,
   PublishResult,
+  ThreadAppendInput,
   ValidationResult,
   VerifyInput,
   VerifyResult,
@@ -186,6 +187,48 @@ export const blueskyAdapter: NetworkAdapter = {
             text: body,
             createdAt: new Date().toISOString(),
             reply: { root: ref, parent: ref },
+          },
+        },
+      },
+    );
+    const rkey = result.uri.split('/').pop() ?? '';
+    return {
+      externalId: result.uri,
+      url: `https://bsky.app/profile/${session.handle}/post/${rkey}`,
+    };
+  },
+
+  async appendToThread({
+    account,
+    secret,
+    rootId,
+    parentId,
+    body,
+  }: ThreadAppendInput): Promise<CommentResult> {
+    const session = await createSession(account.serviceUrl, account.handle, secret);
+    const found = await xrpc<{ posts?: Array<{ uri: string; cid: string }> }>(
+      account.serviceUrl,
+      'app.bsky.feed.getPosts',
+      { token: session.accessJwt, query: { uris: [rootId, parentId].join(',') } },
+    );
+    const byUri = new Map((found.posts ?? []).map((p) => [p.uri, { uri: p.uri, cid: p.cid }]));
+    const root = byUri.get(rootId);
+    const parent = byUri.get(parentId) ?? root;
+    if (!root || !parent) throw new Error('thread ancestor not found');
+
+    const result = await xrpc<{ uri: string }>(
+      account.serviceUrl,
+      'com.atproto.repo.createRecord',
+      {
+        token: session.accessJwt,
+        body: {
+          repo: session.did,
+          collection: 'app.bsky.feed.post',
+          record: {
+            $type: 'app.bsky.feed.post',
+            text: body,
+            createdAt: new Date().toISOString(),
+            reply: { root, parent },
           },
         },
       },

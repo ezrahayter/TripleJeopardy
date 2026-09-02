@@ -121,6 +121,7 @@ interface Body {
   media: string[];
   mediaIsVideo?: boolean;
   firstComment: string;
+  threadParts?: string[];
 }
 
 // ── Bluesky / Threads — the reply-repost-like lineage ──────────────
@@ -130,7 +131,9 @@ function FeedPost({ b, network }: { b: Body; network: NetworkId }) {
   const muted = '#42576c';
   const border = '#e3e8ee';
   const handle = bsky ? `${b.acct.handle}.bsky.social` : b.acct.handle;
+  const parts = (b.threadParts ?? []).map((p) => p.trim()).filter(Boolean);
   return (
+    <div className="space-y-1.5">
     <div
       className="overflow-hidden bg-white"
       style={{ borderRadius: 14, border: `1px solid ${border}`, color: '#0b1620' }}
@@ -178,6 +181,21 @@ function FeedPost({ b, network }: { b: Body; network: NetworkId }) {
           </div>
         </div>
       </div>
+    </div>
+    {parts.map((p, i) => (
+      <div
+        key={i}
+        className="bg-white p-3.5"
+        style={{ borderRadius: 14, border: `1px solid ${border}`, color: '#0b1620' }}
+      >
+        <div className="flex items-center gap-2 text-[13px]" style={{ color: muted }}>
+          <Avatar acct={b.acct} color={b.color} size={22} />
+          <span className="font-bold text-[#0b1620]">{b.acct.name}</span>
+          <span>· part {i + 2}</span>
+        </div>
+        <p className="mt-1.5 whitespace-pre-wrap text-[15px] leading-normal">{p}</p>
+      </div>
+    ))}
     </div>
   );
 }
@@ -346,6 +364,7 @@ export function PostPreview({
   firstComment = '',
   mediaUrls,
   mediaIsVideo = false,
+  threadParts = [],
 }: {
   networks: NetworkId[];
   accounts: Record<string, PreviewAccount | undefined>;
@@ -354,6 +373,7 @@ export function PostPreview({
   firstComment?: string;
   mediaUrls: string[];
   mediaIsVideo?: boolean;
+  threadParts?: string[];
 }) {
   const [active, setActive] = useState<NetworkId | null>(null);
   const current = active && networks.includes(active) ? active : (networks[0] ?? null);
@@ -385,6 +405,7 @@ export function PostPreview({
     media: mediaUrls,
     mediaIsVideo,
     firstComment,
+    threadParts: current === 'bluesky' || current === 'threads' ? threadParts : [],
   };
 
   let card: ReactNode;

@@ -62,6 +62,8 @@ export function PostDetailSheet({
       url: string | null;
       commentPosted: boolean;
       commentError: string | null;
+      threadPosted: number;
+      threadError: string | null;
     }[]
   >([]);
 
@@ -73,6 +75,7 @@ export function PostDetailSheet({
     fundraise_raised: number | null;
     source_url: string | null;
     evergreen_days: number | null;
+    thread_parts: { body: string }[] | null;
   } | null>(null);
   const [boosts, setBoosts] = useState<
     { id: string; platform: string; amount: number; started_on: string | null; note: string | null }[]
@@ -93,7 +96,7 @@ export function PostDetailSheet({
     if (!post) return;
     const { data } = await supabase
       .from('posts')
-      .select('org_id, post_type, link_url, fundraise_goal, fundraise_raised, source_url, evergreen_days')
+      .select('org_id, post_type, link_url, fundraise_goal, fundraise_raised, source_url, evergreen_days, thread_parts')
       .eq('id', post.id)
       .maybeSingle();
     setExtra(data as never);
@@ -180,7 +183,7 @@ export function PostDetailSheet({
       const { data } = await supabase
         .from('post_targets')
         .select(
-          'id, external_url, metrics, metrics_synced_at, comment_external_id, comment_error, social_account:social_accounts(network)',
+          'id, external_url, metrics, metrics_synced_at, comment_external_id, comment_error, thread_posted, thread_error, social_account:social_accounts(network)',
         )
         .eq('post_id', post.id)
         .eq('status', 'published');
@@ -194,6 +197,8 @@ export function PostDetailSheet({
           url: (t.external_url as string) ?? null,
           commentPosted: !!t.comment_external_id,
           commentError: (t.comment_error as string) ?? null,
+          threadPosted: (t.thread_posted as number) ?? 0,
+          threadError: (t.thread_error as string) ?? null,
         })),
       );
     })();
@@ -226,6 +231,18 @@ export function PostDetailSheet({
               <p className="whitespace-pre-wrap rounded-md border border-border bg-card p-3.5 text-sm leading-relaxed">
                 {post.body || <span className="text-muted-foreground">No text</span>}
               </p>
+              {(extra?.thread_parts?.length ?? 0) > 0 && (
+                <div className="space-y-2 border-l-2 border-border pl-3">
+                  <span className="dateline">
+                    Thread · {(extra!.thread_parts!.length ?? 0) + 1} posts
+                  </span>
+                  {extra!.thread_parts!.map((p, i) => (
+                    <p key={i} className="whitespace-pre-wrap text-[13px] leading-relaxed">
+                      {p.body}
+                    </p>
+                  ))}
+                </div>
+              )}
               <PostThumbs postId={post.id} />
               {post.internal_note && (
                 <p className="rounded-md border border-dashed border-border bg-secondary/40 p-2.5 text-xs">
@@ -372,6 +389,16 @@ export function PostDetailSheet({
                     {t.commentPosted && (
                       <p className="dateline mt-1.5 text-[color:var(--pf-olive)]">
                         first comment posted
+                      </p>
+                    )}
+                    {t.threadPosted > 0 && (
+                      <p className="dateline mt-1.5 text-[color:var(--pf-olive)]">
+                        thread · {t.threadPosted} {t.threadPosted === 1 ? 'part' : 'parts'} posted
+                      </p>
+                    )}
+                    {t.threadError && (
+                      <p className="mt-1.5 text-xs text-destructive">
+                        thread stopped: {t.threadError}
                       </p>
                     )}
                     {t.commentError && (

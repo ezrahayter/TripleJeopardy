@@ -17,6 +17,7 @@ interface PendingPost {
   body: string;
   scheduled_at: string | null;
   media: string[];
+  threadParts: string[];
   lastNote: string | null;
   comments: Comment[];
 }
@@ -315,6 +316,17 @@ function ReviewCard({
       <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
         {post.body || <span className="text-muted-foreground">(no text)</span>}
       </p>
+
+      {post.threadParts.length > 0 && (
+        <div className="mt-2 space-y-2 border-l-2 border-border pl-3">
+          <span className="dateline">Thread · {post.threadParts.length + 1} posts</span>
+          {post.threadParts.map((p, i) => (
+            <p key={i} className="whitespace-pre-wrap text-[14px] leading-relaxed">
+              {p}
+            </p>
+          ))}
+        </div>
+      )}
 
       {post.comments.length > 0 && (
         <ul className="mt-3 space-y-1.5 border-t border-border pt-3">

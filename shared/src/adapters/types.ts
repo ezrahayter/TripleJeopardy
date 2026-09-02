@@ -94,6 +94,16 @@ export interface CommentResult {
   url?: string;
 }
 
+export interface ThreadAppendInput {
+  account: AccountRef;
+  secret: string;
+  /** external id of the first post in the thread */
+  rootId: string;
+  /** external id of the immediately preceding part */
+  parentId: string;
+  body: string;
+}
+
 export interface NetworkAdapter {
   network: string;
   /** Cheap local checks before anything touches the network. */
@@ -109,4 +119,7 @@ export interface NetworkAdapter {
   /** Post the first comment as a reply/comment on the just-published post.
    *  Optional. Failure here never fails the post. */
   comment?(input: CommentInput): Promise<CommentResult>;
+  /** Append one part to a native thread/reply-chain (Bluesky, Threads).
+   *  Optional. A failure stops the chain but never un-publishes what's up. */
+  appendToThread?(input: ThreadAppendInput): Promise<CommentResult>;
 }

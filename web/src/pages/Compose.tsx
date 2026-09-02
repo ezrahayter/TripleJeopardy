@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
@@ -41,6 +41,8 @@ interface ExistingMedia {
 
 type Mode = 'draft' | 'schedule' | 'now';
 const MAX_IMAGES = 4;
+const MAX_THREAD_PARTS = 10;
+const THREAD_NETWORKS: NetworkId[] = ['bluesky', 'threads'];
 const ALL_IDS = ALL_NETWORKS.map((n) => n.id);
 
 export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campaign[] }) {
@@ -65,6 +67,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   >([]);
   const [selected, setSelected] = useState<NetworkId[]>(ALL_IDS);
   const [firstComment, setFirstComment] = useState('');
+  const [threadParts, setThreadParts] = useState<string[]>([]);
   const [internalNote, setInternalNote] = useState('');
   const [alts, setAlts] = useState<Record<string, string>>({});
   const [postType, setPostType] = useState<PostType>('standard');
@@ -127,6 +130,12 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       setRapidBusy(false);
     }
   }
+
+  const setPart = (i: number, val: string) =>
+    setThreadParts((p) => p.map((x, j) => (j === i ? val : x)));
+  const addPart = () =>
+    setThreadParts((p) => (p.length >= MAX_THREAD_PARTS ? p : [...p, '']));
+  const removePart = (i: number) => setThreadParts((p) => p.filter((_, j) => j !== i));
 
   async function pullFromLink() {
     setFromBusy(true);
@@ -198,6 +207,12 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const textFor = (id: NetworkId) => overrides[id]?.trim() || finalBody;
   const overLimit = activeSelected.filter((id) => countGraphemes(textFor(id)) > NETWORKS[id].limit);
   const videoBlocked = hasVideo ? activeSelected.filter((id) => !NETWORKS[id].video) : [];
+  const cleanThreadParts = threadParts.map((p) => p.trim()).filter(Boolean);
+  const isThread = cleanThreadParts.length > 0;
+  const threadBlocked = isThread
+    ? activeSelected.filter((id) => !THREAD_NETWORKS.includes(id))
+    : [];
+  const incompatible = [...new Set([...videoBlocked, ...threadBlocked])];
 
   const loadExistingMedia = useCallback(async (postId: string) => {
     const { data: rows } = await supabase
@@ -232,7 +247,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
     void (async () => {
       const { data, error } = await supabase
         .from('posts')
-        .select('body, status, approval_state, campaign_id, scheduled_at, first_comment, internal_note, post_type, link_url, fundraise_goal, needs_source, source_url, body_overrides')
+        .select('body, status, approval_state, campaign_id, scheduled_at, first_comment, internal_note, post_type, link_url, fundraise_goal, needs_source, source_url, body_overrides, thread_parts')
         .eq('id', editId)
         .single();
       if (error || !data) {
@@ -241,6 +256,11 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
         return;
       }
       setBody(data.body ?? '');
+      setThreadParts(
+        Array.isArray(data.thread_parts)
+          ? (data.thread_parts as { body?: string }[]).map((p) => p.body ?? '')
+          : [],
+      );
       setFirstComment((data.first_comment as string) ?? '');
       setInternalNote((data.internal_note as string) ?? '');
       setPostType(((data.post_type as PostType) ?? 'standard'));
@@ -398,6 +418,18 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       );
       return;
     }
+    if (mode !== 'draft' && threadBlocked.length > 0) {
+      setError(
+        `Threads only publish to Bluesky and Threads — unselect ${threadBlocked
+          .map((n) => NETWORKS[n].label)
+          .join(', ')}.`,
+      );
+      return;
+    }
+    if (isThread && hasVideo) {
+      setError('A thread is text only — remove the video or the extra parts.');
+      return;
+    }
 
     // keep only non-empty overrides for networks in play
     const cleanOverrides: Record<string, string> = {};
@@ -420,6 +452,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       needs_source: needsSource,
       source_url: sourceUrl.trim() || null,
       body_overrides: cleanOverrides,
+      thread_parts: cleanThreadParts.slice(0, MAX_THREAD_PARTS).map((body) => ({ body })),
     };
 
     setBusy(true);
@@ -584,7 +617,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
               selected={activeSelected}
               onToggle={toggleNetwork}
               text={body}
-              incompatible={videoBlocked}
+              incompatible={incompatible}
             />
           </div>
 
@@ -626,6 +659,80 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
                   <span className="dateline ml-2 normal-case">“{disclaimer}”</span>
                 </span>
               </label>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {threadParts.length === 0 ? (
+              <button
+                type="button"
+                disabled={hasVideo}
+                onClick={addPart}
+                className="dateline text-[color:var(--pf-brick)] disabled:opacity-40"
+              >
+                ＋ Add to a thread
+              </button>
+            ) : (
+              <>
+                <p className="dateline">
+                  Thread · publishes as a reply chain on Bluesky and Threads
+                </p>
+                {threadParts.map((part, i) => {
+                  const count = countGraphemes(part);
+                  const limit = Math.min(
+                    ...(activeSelected.filter((n) => THREAD_NETWORKS.includes(n)).map(
+                      (n) => NETWORKS[n].limit,
+                    ) || [300]),
+                    NETWORKS.bluesky.limit,
+                  );
+                  return (
+                    <div key={i} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="dateline">Part {i + 2}</span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              'dateline tabular-nums',
+                              count > limit && '!text-destructive',
+                            )}
+                          >
+                            {count}/{limit}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label="Remove part"
+                            onClick={() => removePart(i)}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <Textarea
+                        rows={3}
+                        value={part}
+                        onChange={(e) => setPart(i, e.target.value)}
+                        placeholder={`Part ${i + 2} of the thread`}
+                      />
+                    </div>
+                  );
+                })}
+                {threadParts.length < MAX_THREAD_PARTS && (
+                  <button
+                    type="button"
+                    onClick={addPart}
+                    className="dateline text-[color:var(--pf-brick)]"
+                  >
+                    ＋ Add part
+                  </button>
+                )}
+                {threadBlocked.length > 0 && (
+                  <p className="text-xs text-destructive">
+                    {threadBlocked.map((n) => NETWORKS[n].label).join(', ')} can't post a thread —
+                    unselect to schedule.
+                  </p>
+                )}
+              </>
             )}
           </div>
 
@@ -900,7 +1007,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
               Save as draft
             </Button>
             <Button
-              disabled={busy || !scheduleAt || overLimit.length > 0 || videoBlocked.length > 0}
+              disabled={busy || !scheduleAt || overLimit.length > 0 || incompatible.length > 0}
               onClick={() => void save('schedule')}
             >
               {busy ? 'Working…' : editId ? 'Save to calendar' : 'Add to calendar'}
@@ -908,7 +1015,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
             {hasAccounts && (
               <Button
                 variant="action"
-                disabled={busy || overLimit.length > 0 || videoBlocked.length > 0}
+                disabled={busy || overLimit.length > 0 || incompatible.length > 0}
                 onClick={() => void save('now')}
               >
                 Publish now
@@ -926,6 +1033,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
             firstComment={firstComment}
             mediaUrls={mediaUrls}
             mediaIsVideo={hasVideo}
+            threadParts={cleanThreadParts}
           />
         </div>
       </div>

@@ -202,10 +202,16 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
   video branches live in `shared/src/adapters/media.ts`. **Unproven against
   live Meta** — no media of any kind has published yet, only text.
 
+- ✅ **Thread composer** — `posts.thread_parts` (migration 0033); composer adds
+  text-only parts, publishes as a native reply-chain on Bluesky + Threads
+  (`adapter.appendToThread`, publisher chains root→parent). Picker flags
+  FB/IG/video as incompatible. Candidate sees the whole thread in the portal.
+  `post_targets.thread_posted` / `thread_error` track partial failures.
+  **Unproven against live Threads API** — Bluesky path is straightforward.
+
 **Remaining:**
-- **Compose/schedule:** thread / carousel composer (native reply-chains for
-  Bluesky + Threads — needs publisher work).
 - **Media:** per-network aspect-ratio crop (Kibo `image-crop` vendored, unused).
+  — the last P2 item.
 
 ### P3 — scale / polish
 - TikTok + YouTube adapters + OAuth.

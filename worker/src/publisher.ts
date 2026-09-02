@@ -54,7 +54,7 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
     .from('post_targets')
     .select(
       `id,
-       post:posts ( id, body, body_overrides, first_comment ),
+       post:posts ( id, body, body_overrides, first_comment, thread_parts ),
        account:social_accounts ( network, handle, service_url, external_id, meta, secret_ciphertext )`,
     )
     .eq('id', job.post_target_id)
@@ -121,6 +121,39 @@ async function publishOne(supa: SupabaseClient, env: Env, job: ClaimedJob): Prom
     p_external_id: result.externalId,
     p_external_url: result.url,
   });
+
+  // thread parts — publish as a native reply-chain. Best effort: a mid-chain
+  // failure is recorded but never un-publishes what already went out.
+  const threadParts: Array<{ body?: string }> = Array.isArray(post.thread_parts)
+    ? post.thread_parts
+    : [];
+  if (threadParts.length > 0 && adapter.appendToThread) {
+    let parentId = result.externalId;
+    let posted = 0;
+    let threadError: string | null = null;
+    for (const part of threadParts) {
+      const text = (part.body ?? '').trim();
+      if (!text) continue;
+      try {
+        const r = await adapter.appendToThread({
+          account: accountRef,
+          secret,
+          rootId: result.externalId,
+          parentId,
+          body: text,
+        });
+        parentId = r.externalId;
+        posted += 1;
+      } catch (e) {
+        threadError = String((e as Error)?.message ?? e).slice(0, 500);
+        break;
+      }
+    }
+    await supa
+      .from('post_targets')
+      .update({ thread_posted: posted, thread_error: threadError })
+      .eq('id', job.post_target_id);
+  }
 
   // first comment — best effort, never fails the (already published) post
   const firstComment = (post.first_comment ?? '').trim();

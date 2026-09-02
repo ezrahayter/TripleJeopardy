@@ -9,6 +9,7 @@ import type {
   PostMetrics,
   PublishInput,
   PublishResult,
+  ThreadAppendInput,
   ValidationResult,
   VerifyInput,
   VerifyResult,
@@ -125,6 +126,22 @@ export const threadsAdapter: NetworkAdapter = {
   async comment({ account, secret, parentId, body }: CommentInput): Promise<CommentResult> {
     const userId = account.externalId;
     if (!userId) throw new Error('threads comment needs the Threads user id');
+    const container = await threadsPost<{ id: string }>(`${userId}/threads`, {
+      media_type: 'TEXT',
+      text: body,
+      reply_to_id: parentId,
+      access_token: secret,
+    });
+    const published = await threadsPost<{ id: string }>(`${userId}/threads_publish`, {
+      creation_id: container.id,
+      access_token: secret,
+    });
+    return { externalId: published.id };
+  },
+
+  async appendToThread({ account, secret, parentId, body }: ThreadAppendInput): Promise<CommentResult> {
+    const userId = account.externalId;
+    if (!userId) throw new Error('threads thread append needs the Threads user id');
     const container = await threadsPost<{ id: string }>(`${userId}/threads`, {
       media_type: 'TEXT',
       text: body,
