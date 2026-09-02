@@ -157,9 +157,13 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
   iCal feed.
 - **Analytics:** nightly metric snapshots → time series, plain-language campaign
   recap, top/bottom posts, scheduled report emails, shareable live report link.
-- **Compliance (*ours*):** disclaimer enforcement (block publish without it),
-  boost/paid-spend log for FEC, source-required posts, fundraising post type +
-  goal thermometer + ActBlue/WinRed attribution, kill switch (pause all).
+- **Compliance (*ours*):** kill switch (pause all publishing), boost/paid-spend
+  log for FEC (organic → ad conversions and their spend), source-required posts
+  (flag a post that makes a factual claim, block approval until a source is
+  attached), fundraising post type + goal thermometer + ActBlue/WinRed
+  attribution. (The "Paid for by…" disclaimer is an **ads-only** legal
+  requirement — the composer keeps it as an optional append, not an enforced
+  gate on organic posts.)
 - **Content sourcing:** RSS → drafts, evergreen recycling, bulk CSV upload,
   draft-from-a-link. (Candidate request intake shipped 2026-09-01 — a full
   kanban with the spreadsheet's Short-notice / Media-missing / Need-approval
