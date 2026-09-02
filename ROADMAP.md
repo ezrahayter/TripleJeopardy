@@ -146,30 +146,38 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
    `social_accounts.token_error`, retries `status='error'` accounts
    (migrations 0017–0018). Surfaced on the Accounts page.
 
-### P2 — depth, once P1 lands
-- **Approval:** inline comments on the caption/image (Planable-style), approval
-  deadlines + auto-nudge, revision-round tracking UI, internal notes per post.
+### P2 — depth (in progress, 2026-09-02)
+
+**Done:**
+- ✅ **Calendar:** filter by campaign / network / status; campaign colour-coding;
+  key dates (election / filing / debate / fundraising / milestone anchors,
+  migration 0019, managed per campaign in Settings)
+- ✅ **Kill switch** — pause all publishing for a campaign; queued jobs held +
+  resume on unpause (migration 0020), verified live
+- ✅ **Team note per post** — operator-only, never shown to the candidate
+  (migration 0021)
+- ✅ **Review auto-nudge** — re-email the candidate if a post sits unapproved
+  past `campaigns.review_nudge_hours` (migration 0022, `run-nudges` edge fn
+  pinged by the worker every 30 min)
+
+**Remaining:**
+- **Approval:** inline comments on the caption/image (Planable-style),
+  revision-round tracking UI.
 - **Compose/schedule:** posting-time queue ("next slot"), recurring posts,
   thread/carousel composer, link shortener + UTM builder, saved
   caption/hashtag snippets, emoji picker.
-- **Calendar:** filter by campaign/network/status, campaign date anchors
-  (election day, filing deadlines, debates), color-coding, Google Calendar /
-  iCal feed.
+- **Calendar:** Google Calendar / iCal feed.
 - **Analytics:** nightly metric snapshots → time series, plain-language campaign
-  recap, top/bottom posts, scheduled report emails, shareable live report link.
-- **Compliance (*ours*):** kill switch (pause all publishing), boost/paid-spend
-  log for FEC (organic → ad conversions and their spend), source-required posts
-  (flag a post that makes a factual claim, block approval until a source is
-  attached), fundraising post type + goal thermometer + ActBlue/WinRed
-  attribution. (The "Paid for by…" disclaimer is an **ads-only** legal
-  requirement — the composer keeps it as an optional append, not an enforced
-  gate on organic posts.)
+  recap, top/bottom posts (top done), scheduled report emails, shareable live
+  report link.
+- **Compliance (*ours*):** boost/paid-spend log for FEC, source-required posts
+  (block approval until a source is attached), fundraising post type + goal
+  thermometer + ActBlue/WinRed attribution.
 - **Content sourcing:** RSS → drafts, evergreen recycling, bulk CSV upload,
-  draft-from-a-link. (Candidate request intake shipped 2026-09-01 — a full
-  kanban with the spreadsheet's Short-notice / Media-missing / Need-approval
-  columns is the remaining depth here.)
-- **Media:** media library, per-network aspect-ratio crop (Kibo `image-crop` is
-  already vendored, unused), video passthrough, alt-text fields for all networks.
+  draft-from-a-link, request kanban (the spreadsheet's Short-notice /
+  Media-missing / Need-approval columns).
+- **Media:** media library, per-network aspect-ratio crop (Kibo `image-crop`
+  vendored, unused), video passthrough, alt-text fields for all networks.
 - **AI:** caption gen/rewrite, tone adjustment, "feedback translator" (vague
   note → concrete edits), rapid-response draft options.
 - **Client read-only calendar view.**
