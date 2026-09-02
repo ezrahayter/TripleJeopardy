@@ -83,6 +83,8 @@ export function ApprovalLedger({
     await supabase
       .from('approval_events')
       .insert({ post_id: post.id, event: 'sent_for_review', actor: 'operator' });
+    // email the candidate the portal link — fire and forget, never blocks the UI
+    void supabase.functions.invoke('notify-candidate', { body: { post_id: post.id } });
     setBusy(false);
     await load();
     onChange();
