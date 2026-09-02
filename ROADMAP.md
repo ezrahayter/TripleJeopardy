@@ -171,20 +171,23 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
 - ✅ **AI** — `ai` edge fn (Claude Opus): caption/rewrite/tone/hashtags in the
   composer, rapid-response draft options, feedback translator on the approval
   ledger. Needs `ANTHROPIC_API_KEY` set.
+- ✅ **Posting-time queue** — `campaigns.posting_slots` (migration 0026),
+  managed in Settings; composer "Next open slot" skips taken slots
+- ✅ **iCal feed** — `calendar-feed` edge fn serves a campaign's schedule +
+  key dates as text/calendar; link in Settings
+- ✅ **Client calendar** — "What's coming up" timeline on the review portal
+- ✅ **Request triage flags** — New requests show Short-notice / Media-pending /
+  Wants-approval badges (the spreadsheet's board columns, derived)
 
 **Remaining:**
 - **Approval:** inline comments on the caption/image (Planable-style),
   revision-round tracking UI.
-- **Compose/schedule:** posting-time queue ("next slot"), recurring posts,
-  thread/carousel composer.
-- **Calendar:** Google Calendar / iCal feed.
+- **Compose/schedule:** recurring posts, thread/carousel composer.
 - **Analytics:** plain-language campaign recap, scheduled report emails,
   shareable live report link.
-- **Content sourcing:** RSS → drafts, evergreen recycling, request kanban
-  (the spreadsheet's Short-notice / Media-missing / Need-approval columns).
+- **Content sourcing:** RSS → drafts, evergreen recycling.
 - **Media:** media library, per-network aspect-ratio crop (Kibo `image-crop`
   vendored, unused), video passthrough.
-- **Client read-only calendar view.**
 
 ### P3 — scale / polish
 - TikTok + YouTube adapters + OAuth.

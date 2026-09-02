@@ -85,11 +85,21 @@ export function Requests({ orgId }: { orgId: string }) {
                       fallback="No date given"
                     />
                   </span>
-                  {row.content_type && (
-                    <span className="hidden shrink-0 rounded font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground sm:inline">
-                      {row.content_type}
-                    </span>
-                  )}
+                  <span className="hidden shrink-0 items-center gap-1 sm:flex">
+                    {triageFlags(row).map((f) => (
+                      <span
+                        key={f}
+                        className="rounded-full border border-[color:var(--pf-brick)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em] text-[color:var(--pf-brick)]"
+                      >
+                        {f}
+                      </span>
+                    ))}
+                    {row.content_type && (
+                      <span className="rounded font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+                        {row.content_type}
+                      </span>
+                    )}
+                  </span>
                 </button>
               ))}
             </div>
@@ -107,6 +117,18 @@ export function Requests({ orgId }: { orgId: string }) {
       />
     </>
   );
+}
+
+function triageFlags(r: RequestRow): string[] {
+  if (r.status !== 'new') return [];
+  const flags: string[] = [];
+  if (r.planned_publish) {
+    const days = (new Date(`${r.planned_publish}T12:00:00`).getTime() - Date.now()) / 864e5;
+    if (days <= 7) flags.push('Short notice');
+  }
+  if (r.photos_video === 'coming_soon') flags.push('Media pending');
+  if (r.needs_submitter_approval) flags.push('Wants approval');
+  return flags;
 }
 
 function summary(r: RequestRow): string {
