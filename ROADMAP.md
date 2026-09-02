@@ -186,11 +186,14 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
   pings it Monday 13:00 UTC; per-org opt-out in Settings
 - ✅ **Recurring posts** — composer "Repeat every week/2 weeks/month ×N" fans a
   scheduled post into N independent scheduled copies (body + media)
+- ✅ **RSS → drafts** — `campaign_feeds` + `feed_items_seen` (migration 0029),
+  managed per campaign in Settings; `worker/src/feeds.ts` polls every 15 min,
+  new items become draft posts (first check just catalogues)
 
 **Remaining:**
 - **Approval:** inline comments on the caption/image (Planable-style).
 - **Compose/schedule:** thread/carousel composer.
-- **Content sourcing:** RSS → drafts, evergreen recycling.
+- **Content sourcing:** evergreen recycling.
 - **Media:** media library, per-network aspect-ratio crop (Kibo `image-crop`
   vendored, unused), video passthrough.
 

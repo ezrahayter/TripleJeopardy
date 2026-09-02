@@ -6,6 +6,7 @@ import { FileText } from 'lucide-react';
 import { CampaignApproval } from '@/components/CampaignApproval';
 import { CampaignDates } from '@/components/CampaignDates';
 import { PostingSlots } from '@/components/PostingSlots';
+import { CampaignFeeds } from '@/components/CampaignFeeds';
 import { TeamSection } from '@/components/TeamSection';
 import { ApprovalReport } from '@/components/ApprovalReport';
 import type { Invite, Member } from '@/lib/useWorkspace';
@@ -274,6 +275,7 @@ export function Settings({
                   slots={c.posting_slots ?? []}
                   onSave={(slots) => onUpdateSlots(c.id, slots)}
                 />
+                <CampaignFeeds campaignId={c.id} orgId={org.id} />
               </>
             )}
           </div>

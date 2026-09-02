@@ -1,6 +1,7 @@
 import { runPublisher } from './publisher';
 import { runTokenRefresh } from './refresh';
 import { runMetricsSync } from './metrics';
+import { runFeedSync } from './feeds';
 
 export interface Env {
   SUPABASE_URL: string;
@@ -29,6 +30,15 @@ async function tick(env: Env) {
   if (minute % 10 === 0) {
     metrics = await runMetricsSync(env).catch((e) => {
       console.error('metrics sync error', String(e?.message ?? e));
+      return null;
+    });
+  }
+
+  // RSS/Atom → drafts — every 15 min, offset from the other jobs
+  let feeds: { feeds: number; drafted: number } | null = null;
+  if (minute % 15 === 7) {
+    feeds = await runFeedSync(env).catch((e) => {
+      console.error('feed sync error', String(e?.message ?? e));
       return null;
     });
   }
@@ -67,7 +77,7 @@ async function tick(env: Env) {
       });
   }
 
-  return { publish, refresh, metrics, nudges, digests };
+  return { publish, refresh, metrics, feeds, nudges, digests };
 }
 
 export default {
