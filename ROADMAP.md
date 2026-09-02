@@ -18,24 +18,21 @@ only). Runs on free tiers (~$12/yr domain the only cost).
 
 ---
 
-## Status — 2026-09-01
+## Status — 2026-09-02
 
-> **2026-09-01 update:** candidate **post requests** now ship in the same
-> `/review/<token>` portal — a 4-step wizard mirroring Ava's old Google Form
-> ("[client] Social Media Request"), with image upload. Requests land in a new
-> operator **Requests** inbox (`/requests`, nav item after Approvals); accepting
-> one spins up a draft post (body + copied media) and drops you in Compose.
-> New: migration `0012` (`post_requests`, `post_request_media`,
-> `campaigns.requests_enabled`); `review` Edge Function gained
-> `action:'sign-upload'` / `action:'request'` (redeploy it). The Google Form is
-> retired.
+> **2026-09-02 update:** most of **P2** landed in one push — see the P2 "Done"
+> list below. New edge functions: `ai`, `calendar-feed`, `report`, `run-digests`
+> (all `verify_jwt = false`). New worker steps: `metrics`, `feeds`, `recycle`,
+> plus pings to `run-nudges` / `run-digests`. New public routes: `/report/<token>`.
+> Migrations through **0031** applied. **Action needed from Ezra:** set
+> `ANTHROPIC_API_KEY` (AI features 503 until then); finish the Resend DNS +
+> `EMAIL_FROM` swap (below).
 
 ### Live
 - **web** → https://triple-jeopardy.pages.dev (Cloudflare Pages)
-- **worker** → deployed, cron `* * * * *` (the publisher)
-- **Supabase** ref `zompyktytkwyueedshzk`; migrations **0001–0011 applied**
-  (⬜ **0012** written, not yet pushed — run `npx supabase db push` +
-  `npx supabase functions deploy review`)
+- **worker** → deployed, cron `* * * * *` (publisher + refresh + metrics + feeds
+  + recycle + nudge/digest pings)
+- **Supabase** ref `zompyktytkwyueedshzk`; migrations **0001–0031 applied**
 - GitHub `git@github.com:ezrahayter/TripleJeopardy.git`
 
 ### Shipped
