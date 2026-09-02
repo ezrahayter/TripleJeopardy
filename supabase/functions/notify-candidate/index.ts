@@ -30,7 +30,7 @@ Deno.serve(async (req: Request) => {
     const { data: post } = await admin
       .from('posts')
       .select(
-        'id, body, campaign:campaigns(id, org_id, name, approver_name, approver_email, review_token)',
+        'id, body, campaign:campaigns(id, org_id, name, approver_name, approver_email, review_token, org:orgs(notify_email))',
       )
       .eq('id', post_id)
       .maybeSingle();
@@ -42,6 +42,7 @@ Deno.serve(async (req: Request) => {
           approver_name: string | null;
           approver_email: string | null;
           review_token: string | null;
+          org: { notify_email: string | null } | null;
         }
       | null;
     if (!post || !c) return json({ error: 'Post not found' }, 404);
@@ -68,6 +69,7 @@ Deno.serve(async (req: Request) => {
 
     await sendEmail({
       to: c.approver_email,
+      replyTo: c.org?.notify_email ?? null, // candidate's reply goes to the team
       subject: `A post is ready for your review — ${c.name}`,
       html: emailShell(
         `<p>${first ? `Hi ${escapeHtml(first)},` : 'Hi,'}</p>

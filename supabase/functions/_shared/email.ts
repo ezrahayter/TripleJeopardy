@@ -11,18 +11,29 @@ export async function sendEmail(opts: {
   to: string | string[];
   subject: string;
   html: string;
+  /** where a reply goes — e.g. the candidate's reply lands in Ava's inbox */
+  replyTo?: string | string[] | null;
 }): Promise<void> {
   const key = Deno.env.get('RESEND_API_KEY');
   if (!key) return;
   const from = Deno.env.get('EMAIL_FROM') ?? 'Triple Jeopardy <onboarding@resend.dev>';
   const to = (Array.isArray(opts.to) ? opts.to : [opts.to]).filter(Boolean);
   if (to.length === 0) return;
+  const replyTo = opts.replyTo
+    ? (Array.isArray(opts.replyTo) ? opts.replyTo : [opts.replyTo]).filter(Boolean)
+    : undefined;
 
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ from, to, subject: opts.subject, html: opts.html }),
+      body: JSON.stringify({
+        from,
+        to,
+        subject: opts.subject,
+        html: opts.html,
+        ...(replyTo && replyTo.length ? { reply_to: replyTo } : {}),
+      }),
     });
     if (!res.ok) console.error('resend send failed', res.status, await res.text());
   } catch (e) {
