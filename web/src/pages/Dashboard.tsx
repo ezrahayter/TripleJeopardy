@@ -33,6 +33,7 @@ interface Row {
 interface Conn {
   id: string;
   name: string;
+  paused: boolean;
   networks: { network: string; status: string }[];
 }
 
@@ -75,7 +76,7 @@ export function Dashboard({ orgId }: { orgId: string }) {
         .not('scheduled_at', 'is', null),
       supabase
         .from('campaigns')
-        .select('id, name, social_accounts(network, status)')
+        .select('id, name, publishing_paused, social_accounts(network, status)')
         .eq('org_id', orgId)
         .order('created_at'),
     ]);
@@ -93,9 +94,17 @@ export function Dashboard({ orgId }: { orgId: string }) {
     setWeek(counts);
 
     setConns(
-      ((campaigns as unknown as Array<{ id: string; name: string; social_accounts: { network: string; status: string }[] }>) ?? []).map(
-        (c) => ({ id: c.id, name: c.name, networks: c.social_accounts ?? [] }),
-      ),
+      ((campaigns as unknown as Array<{
+        id: string;
+        name: string;
+        publishing_paused: boolean;
+        social_accounts: { network: string; status: string }[];
+      }>) ?? []).map((c) => ({
+        id: c.id,
+        name: c.name,
+        paused: c.publishing_paused,
+        networks: c.social_accounts ?? [],
+      })),
     );
     setLoading(false);
   }, [orgId]);
@@ -126,6 +135,22 @@ export function Dashboard({ orgId }: { orgId: string }) {
           </Button>
         }
       />
+
+      {conns.some((c) => c.paused) && (
+        <div className="mb-5 flex flex-wrap items-center gap-2 rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-sm">
+          <span className="font-semibold text-destructive">Publishing paused</span>
+          <span className="text-muted-foreground">
+            {conns
+              .filter((c) => c.paused)
+              .map((c) => c.name)
+              .join(', ')}
+            {' '}— scheduled posts are held until resumed.
+          </span>
+          <Link to="/settings" className="dateline ml-auto hover:text-foreground">
+            Manage in Settings
+          </Link>
+        </div>
+      )}
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>

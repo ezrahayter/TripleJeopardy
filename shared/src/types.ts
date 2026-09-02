@@ -46,6 +46,7 @@ export interface Campaign {
   disclaimer: string | null;
   review_token: string;
   requests_enabled: boolean;
+  publishing_paused: boolean;
   created_at: string;
 }
 

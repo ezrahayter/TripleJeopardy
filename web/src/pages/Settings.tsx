@@ -20,6 +20,7 @@ interface Props {
   currentUserId: string;
   onRename: (id: string, name: string) => Promise<void>;
   onUpdateOrg: (id: string, patch: { notify_email?: string | null }) => Promise<void>;
+  onPauseCampaign: (id: string, paused: boolean) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onAddCampaign: (name: string) => Promise<void>;
   onRenameCampaign: (id: string, name: string) => Promise<void>;
@@ -47,6 +48,7 @@ export function Settings({
   currentUserId,
   onRename,
   onUpdateOrg,
+  onPauseCampaign,
   onDelete,
   onAddCampaign,
   onRenameCampaign,
@@ -188,7 +190,28 @@ export function Settings({
               </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="flex-1 font-medium">{c.name}</span>
+                <span className="flex-1 font-medium">
+                  {c.name}
+                  {c.publishing_paused && (
+                    <span className="ml-2 rounded bg-destructive px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-white">
+                      paused
+                    </span>
+                  )}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={c.publishing_paused ? '' : 'text-destructive hover:text-destructive'}
+                  disabled={busy}
+                  onClick={() =>
+                    void guard(
+                      () => onPauseCampaign(c.id, !c.publishing_paused),
+                      c.publishing_paused ? 'Publishing resumed' : 'Publishing paused',
+                    )
+                  }
+                >
+                  {c.publishing_paused ? 'Resume publishing' : 'Pause publishing'}
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => setReportFor(c)}>
                   <FileText className="size-4" /> Record
                 </Button>

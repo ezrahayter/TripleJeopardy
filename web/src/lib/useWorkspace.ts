@@ -34,6 +34,7 @@ interface WorkspaceState {
   createWorkspace: (name: string, firstCampaign: string) => Promise<void>;
   renameWorkspace: (id: string, name: string) => Promise<void>;
   updateWorkspace: (id: string, patch: { notify_email?: string | null }) => Promise<void>;
+  setCampaignPaused: (id: string, paused: boolean) => Promise<void>;
   deleteWorkspace: (id: string) => Promise<void>;
   addCampaign: (name: string) => Promise<void>;
   renameCampaign: (id: string, name: string) => Promise<void>;
@@ -212,6 +213,18 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
     [org, loadCampaigns],
   );
 
+  const setCampaignPaused = useCallback<WorkspaceState['setCampaignPaused']>(
+    async (id, paused) => {
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ publishing_paused: paused })
+        .eq('id', id);
+      if (error) throw error;
+      if (org) await loadCampaigns(org.id);
+    },
+    [org, loadCampaigns],
+  );
+
   const listTeam = useCallback(async (orgId: string) => {
     const [{ data: members, error: mErr }, { data: invites, error: iErr }] = await Promise.all([
       supabase.rpc('tj_list_members', { p_org: orgId }),
@@ -264,6 +277,7 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
     createWorkspace,
     renameWorkspace,
     updateWorkspace,
+    setCampaignPaused,
     deleteWorkspace,
     addCampaign,
     renameCampaign,
