@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Check, X } from 'lucide-react';
+import { Check, Download, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { PostRequestMedia } from '@shared/types';
 import type { RequestRow } from '@/pages/Requests';
@@ -82,6 +82,30 @@ export function RequestDetailSheet({
     };
   }, [request]);
 
+  async function downloadOne(m: PostRequestMedia) {
+    const name = m.filename || m.storage_path.split('/').pop() || 'download';
+    const { data, error } = await supabase.storage
+      .from('media')
+      .createSignedUrl(m.storage_path, 120, { download: name });
+    if (error || !data) {
+      toast.error('Could not prepare that download');
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = data.signedUrl;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  async function downloadAll() {
+    for (const m of media) {
+      await downloadOne(m);
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  }
+
   if (!request) return <Sheet open={false} onOpenChange={onOpenChange} />;
 
   const isNew = request.status === 'new';
@@ -123,8 +147,8 @@ export function RequestDetailSheet({
         .order('sort');
       let sort = 0;
       for (const m of (mediaRows as PostRequestMedia[]) ?? []) {
-        const name = m.storage_path.split('/').pop() ?? `${crypto.randomUUID()}`;
-        const dst = `${request.campaign_id}/${postId}/${name}`;
+        const base = m.storage_path.split('/').pop() ?? crypto.randomUUID();
+        const dst = `${request.campaign_id}/${postId}/${base}`;
         const { error: cpErr } = await supabase.storage.from('media').copy(m.storage_path, dst);
         if (cpErr) continue;
         await supabase
@@ -244,19 +268,55 @@ export function RequestDetailSheet({
           )}
 
           {media.length > 0 && (
-            <Row label="Uploads">
-              <div className="flex flex-wrap gap-2">
-                {media.map((m) => (
-                  <a key={m.id} href={m.url} target="_blank" rel="noreferrer">
-                    <img
-                      src={m.url}
-                      alt=""
-                      className="size-20 rounded-md border border-border object-cover"
-                    />
-                  </a>
-                ))}
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <div className="dateline">Uploads ({media.length})</div>
+                {media.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => void downloadAll()}
+                    className="dateline flex items-center gap-1 text-[color:var(--pf-brick)]"
+                  >
+                    <Download className="size-3" /> Download all
+                  </button>
+                )}
               </div>
-            </Row>
+              <ul className="space-y-2">
+                {media.map((m) => (
+                  <li key={m.id} className="flex items-center gap-3">
+                    <a
+                      href={m.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0"
+                      title="Open in a new tab"
+                    >
+                      <img
+                        src={m.url}
+                        alt=""
+                        className="size-14 rounded-md border border-border object-cover"
+                      />
+                    </a>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm">
+                        {m.filename || m.storage_path.split('/').pop()}
+                      </div>
+                      {m.kind === 'resource' && (
+                        <div className="dateline mt-0.5">required resource</div>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => void downloadOne(m)}
+                    >
+                      <Download className="size-4" /> Download
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
 

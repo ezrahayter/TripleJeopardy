@@ -242,7 +242,11 @@ export function RequestWizard({
             needs_submitter_approval: !!d.needs_submitter_approval,
             draft_lead: d.needs_submitter_approval ? d.draft_lead : null,
           },
-          media: [...resources, ...media].map((m) => ({ path: m.path, kind: m.kind })),
+          media: [...resources, ...media].map((m) => ({
+            path: m.path,
+            kind: m.kind,
+            filename: m.name,
+          })),
         }),
       });
       const body = await res.json();

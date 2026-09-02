@@ -192,12 +192,13 @@ Deno.serve(async (req: Request) => {
 
         const media = Array.isArray(bodyJson.media) ? bodyJson.media.slice(0, 10) : [];
         const rows = media
-          .filter((m: unknown): m is { path: string; kind?: string } =>
+          .filter((m: unknown): m is { path: string; kind?: string; filename?: string } =>
             !!m && typeof (m as { path?: unknown }).path === 'string' &&
             (m as { path: string }).path.startsWith(`${campaign.id}/requests/${requestId}/`))
-          .map((m: { path: string; kind?: string }, i: number) => ({
+          .map((m: { path: string; kind?: string; filename?: string }, i: number) => ({
             request_id: requestId,
             storage_path: m.path,
+            filename: clampText(m.filename, 260),
             kind: m.kind === 'resource' ? 'resource' : 'media',
             sort: i,
           }));

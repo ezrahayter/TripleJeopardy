@@ -130,6 +130,7 @@ export interface PostRequestMedia {
   id: string;
   request_id: string;
   storage_path: string;
+  filename: string | null;
   kind: 'resource' | 'media';
   sort: number;
 }
