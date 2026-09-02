@@ -2,6 +2,7 @@ import { runPublisher } from './publisher';
 import { runTokenRefresh } from './refresh';
 import { runMetricsSync } from './metrics';
 import { runFeedSync } from './feeds';
+import { runEvergreen } from './recycle';
 
 export interface Env {
   SUPABASE_URL: string;
@@ -43,6 +44,15 @@ async function tick(env: Env) {
     });
   }
 
+  // evergreen recycling — once an hour is plenty
+  let evergreen: { checked: number; recycled: number } | null = null;
+  if (minute === 23) {
+    evergreen = await runEvergreen(env).catch((e) => {
+      console.error('evergreen error', String(e?.message ?? e));
+      return null;
+    });
+  }
+
   // review nudges — every 30 min, handled by an edge function that can email
   let nudges: unknown = null;
   if (minute % 30 === 0 && env.WORKER_TRIGGER_SECRET) {
@@ -77,7 +87,7 @@ async function tick(env: Env) {
       });
   }
 
-  return { publish, refresh, metrics, feeds, nudges, digests };
+  return { publish, refresh, metrics, feeds, evergreen, nudges, digests };
 }
 
 export default {

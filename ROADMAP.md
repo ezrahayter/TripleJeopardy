@@ -190,10 +190,12 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
   managed per campaign in Settings; `worker/src/feeds.ts` polls every 15 min,
   new items become draft posts (first check just catalogues)
 
+- ✅ **Evergreen recycling** — mark a published post to re-draft every
+  30/60/90 days (migration 0030, `worker/src/recycle.ts`, hourly)
+
 **Remaining:**
 - **Approval:** inline comments on the caption/image (Planable-style).
 - **Compose/schedule:** thread/carousel composer.
-- **Content sourcing:** evergreen recycling.
 - **Media:** media library, per-network aspect-ratio crop (Kibo `image-crop`
   vendored, unused), video passthrough.
 

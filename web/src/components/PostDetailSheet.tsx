@@ -71,6 +71,7 @@ export function PostDetailSheet({
     fundraise_goal: number | null;
     fundraise_raised: number | null;
     source_url: string | null;
+    evergreen_days: number | null;
   } | null>(null);
   const [boosts, setBoosts] = useState<
     { id: string; platform: string; amount: number; started_on: string | null; note: string | null }[]
@@ -91,7 +92,7 @@ export function PostDetailSheet({
     if (!post) return;
     const { data } = await supabase
       .from('posts')
-      .select('org_id, post_type, link_url, fundraise_goal, fundraise_raised, source_url')
+      .select('org_id, post_type, link_url, fundraise_goal, fundraise_raised, source_url, evergreen_days')
       .eq('id', post.id)
       .maybeSingle();
     setExtra(data as never);
@@ -136,6 +137,13 @@ export function PostDetailSheet({
     await supabase.from('posts').update({ fundraise_raised: v }).eq('id', post.id);
     await loadExtra();
     toast.success('Amount raised updated');
+  }
+
+  async function setEvergreen(days: number) {
+    if (!post) return;
+    await supabase.from('posts').update({ evergreen_days: days }).eq('id', post.id);
+    await loadExtra();
+    toast.success(days ? `Recycles every ${days} days` : 'Recycling off');
   }
 
   async function addBoost() {
@@ -375,6 +383,36 @@ export function PostDetailSheet({
                     )}
                   </div>
                 ))}
+              </section>
+            )}
+
+            {published && (
+              <section className="space-y-2 border-b border-border px-5 py-4">
+                <h3 className="dateline">Evergreen</h3>
+                <p className="text-xs text-muted-foreground">
+                  Re-draft this post on a schedule so you can freshen and re-post it.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: 'Off', days: 0 },
+                    { label: '30 days', days: 30 },
+                    { label: '60 days', days: 60 },
+                    { label: '90 days', days: 90 },
+                  ].map((o) => (
+                    <button
+                      key={o.days}
+                      type="button"
+                      onClick={() => void setEvergreen(o.days)}
+                      className={`rounded-full border px-2.5 py-1 text-xs ${
+                        (extra?.evergreen_days ?? 0) === o.days
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-input bg-card'
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
               </section>
             )}
 
