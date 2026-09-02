@@ -17,6 +17,7 @@ import { PostPreview, type PreviewAccount } from '@/components/compose/PostPrevi
 import { SchedulePicker } from '@/components/compose/SchedulePicker';
 import { nextOpenSlot } from '@/lib/postingSlots';
 import { MediaDropzone, type MediaItem } from '@/components/compose/MediaDropzone';
+import { MediaLibrary } from '@/components/compose/MediaLibrary';
 import { ComposeTools } from '@/components/compose/ComposeTools';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -761,7 +762,23 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
           </div>
 
           <div className="space-y-1.5">
-            <Label>Images ({totalImages}/{MAX_IMAGES})</Label>
+            <div className="flex items-center justify-between">
+              <Label>Images ({totalImages}/{MAX_IMAGES})</Label>
+              <MediaLibrary
+                campaignId={campaignId}
+                disabled={busy || totalImages >= MAX_IMAGES}
+                onPick={async (it) => {
+                  try {
+                    const res = await fetch(it.url);
+                    const blob = await res.blob();
+                    const name = it.path.split('/').pop() ?? 'image';
+                    addFiles([new File([blob], name, { type: blob.type || 'image/jpeg' })]);
+                  } catch {
+                    toast.error('Could not load that image.');
+                  }
+                }}
+              />
+            </div>
             <MediaDropzone
               items={mediaItems}
               max={MAX_IMAGES}

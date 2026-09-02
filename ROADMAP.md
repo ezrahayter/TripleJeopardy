@@ -197,10 +197,14 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
   draft in PostDetailSheet and on the review portal, resolvable, emailed to
   the team. Not a decision — separate from the approval ledger.
 
+- ✅ **Media library** — "From library" in the composer reuses any image the
+  campaign has used before (dedup'd, signed thumbnails)
+
 **Remaining:**
-- **Compose/schedule:** thread/carousel composer.
-- **Media:** media library, per-network aspect-ratio crop (Kibo `image-crop`
-  vendored, unused), video passthrough.
+- **Compose/schedule:** thread / carousel composer (native reply-chains for
+  Bluesky + Threads — needs publisher work).
+- **Media:** per-network aspect-ratio crop (Kibo `image-crop` vendored, unused),
+  video passthrough.
 
 ### P3 — scale / polish
 - TikTok + YouTube adapters + OAuth.
