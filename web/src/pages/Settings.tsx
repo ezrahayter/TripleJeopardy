@@ -34,6 +34,7 @@ interface Props {
       waived_networks: string[];
       disclaimer: string | null;
       requests_enabled: boolean;
+      review_nudge_hours: number;
     },
   ) => Promise<void>;
   listTeam: (orgId: string) => Promise<{ members: Member[]; invites: Invite[] }>;

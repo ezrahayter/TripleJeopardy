@@ -47,6 +47,7 @@ export interface Campaign {
   review_token: string;
   requests_enabled: boolean;
   publishing_paused: boolean;
+  review_nudge_hours: number;
   created_at: string;
 }
 

@@ -35,6 +35,7 @@ export function CampaignApproval({
     waived_networks: string[];
     disclaimer: string | null;
     requests_enabled: boolean;
+    review_nudge_hours: number;
   }) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -44,6 +45,7 @@ export function CampaignApproval({
   const [waived, setWaived] = useState<string[]>(campaign.waived_networks ?? []);
   const [disclaimer, setDisclaimer] = useState(campaign.disclaimer ?? '');
   const [requestsEnabled, setRequestsEnabled] = useState(campaign.requests_enabled !== false);
+  const [nudgeHours, setNudgeHours] = useState(String(campaign.review_nudge_hours ?? 0));
   const [reviewToken, setReviewToken] = useState(campaign.review_token);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -83,6 +85,7 @@ export function CampaignApproval({
         waived_networks: mode === 'waived' ? [] : waived,
         disclaimer,
         requests_enabled: requestsEnabled,
+        review_nudge_hours: Math.max(0, parseInt(nudgeHours || '0', 10) || 0),
       });
       toast.success('Campaign settings saved');
       setOpen(false);
@@ -136,13 +139,34 @@ export function CampaignApproval({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor={`ae-${campaign.id}`}>Their email (for your reference)</Label>
+                <Label htmlFor={`ae-${campaign.id}`}>Their email</Label>
+                <p className="text-xs text-muted-foreground">
+                  Gets the portal link when a post is sent for review.
+                </p>
                 <Input
                   id={`ae-${campaign.id}`}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor={`nudge-${campaign.id}`}>Nudge if not approved within</Label>
+                <p className="text-xs text-muted-foreground">
+                  Re-emails the reminder after this many hours. 0 turns it off.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id={`nudge-${campaign.id}`}
+                    type="number"
+                    min={0}
+                    className="w-24"
+                    value={nudgeHours}
+                    onChange={(e) => setNudgeHours(e.target.value)}
+                  />
+                  <span className="text-sm text-muted-foreground">hours</span>
+                </div>
               </div>
 
               <div className="space-y-1.5">

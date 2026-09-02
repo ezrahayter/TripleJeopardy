@@ -33,7 +33,21 @@ async function tick(env: Env) {
     });
   }
 
-  return { publish, refresh, metrics };
+  // review nudges — every 30 min, handled by an edge function that can email
+  let nudges: unknown = null;
+  if (minute % 30 === 0 && env.WORKER_TRIGGER_SECRET) {
+    nudges = await fetch(`${env.SUPABASE_URL}/functions/v1/run-nudges`, {
+      method: 'POST',
+      headers: { 'x-trigger-secret': env.WORKER_TRIGGER_SECRET },
+    })
+      .then((r) => r.json())
+      .catch((e) => {
+        console.error('nudge run error', String(e?.message ?? e));
+        return null;
+      });
+  }
+
+  return { publish, refresh, metrics, nudges };
 }
 
 export default {

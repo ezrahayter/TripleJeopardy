@@ -22,5 +22,8 @@ verify_jwt = false
 [functions.notify-candidate]
 verify_jwt = false
 
+[functions.run-nudges]
+verify_jwt = false
+
 [functions.review]
 verify_jwt = false
