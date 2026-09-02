@@ -68,6 +68,8 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const [fundGoal, setFundGoal] = useState('');
   const [needsSource, setNeedsSource] = useState(false);
   const [sourceUrl, setSourceUrl] = useState('');
+  const [fromLink, setFromLink] = useState('');
+  const [fromBusy, setFromBusy] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [overridesOpen, setOverridesOpen] = useState(false);
   const [useDisclaimer, setUseDisclaimer] = useState(true);
@@ -94,6 +96,35 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
       return next;
     });
   }, []);
+  async function pullFromLink() {
+    setFromBusy(true);
+    try {
+      const base = import.meta.env.VITE_SUPABASE_URL as string;
+      const res = await fetch(
+        `${base}/functions/v1/og-fetch?url=${encodeURIComponent(fromLink.trim())}`,
+        { headers: { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string } },
+      );
+      const og = (await res.json()) as {
+        title?: string;
+        description?: string;
+        error?: string;
+      };
+      if (!res.ok || og.error) {
+        toast.error(og.error ?? 'Could not read that link.');
+      } else {
+        const parts = [og.title, og.description].filter(Boolean);
+        setBody(parts.join('\n\n'));
+        setLinkUrl(fromLink.trim());
+        setFromLink('');
+        toast.success('Drafted from the link');
+      }
+    } catch (e) {
+      toast.error(String((e as Error)?.message ?? e));
+    } finally {
+      setFromBusy(false);
+    }
+  }
+
   const disclaimer = campaign?.disclaimer?.trim() ?? '';
 
   /** body as it will be saved — disclaimer appended once, if opted in */
@@ -387,6 +418,29 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
               </SelectContent>
             </Select>
           </div>
+
+          {!editId && !body.trim() && (
+            <div className="space-y-1.5">
+              <Label htmlFor="from-link">Start from a link</Label>
+              <div className="flex gap-2">
+                <input
+                  id="from-link"
+                  value={fromLink}
+                  onChange={(e) => setFromLink(e.target.value)}
+                  placeholder="Paste an article or event URL"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={fromBusy || !/^https?:\/\//i.test(fromLink.trim())}
+                  onClick={() => void pullFromLink()}
+                >
+                  {fromBusy ? '…' : 'Pull'}
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label>

@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Plus, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { ApprovalMode, ApprovalState, Post } from '@shared/types';
+import type { ApprovalMode, ApprovalState, Campaign, Post } from '@shared/types';
 import { NETWORKS, type NetworkId } from '@/lib/networks';
 import { timeAgo } from '@/lib/format';
 import { PageHeader } from '@/components/PageHeader';
+import { BulkImport } from '@/components/BulkImport';
 import { CampaignAvatar } from '@/components/CampaignAvatar';
 import { Dateline } from '@/components/Dateline';
 import { StatusChip, ApprovalChip } from '@/components/StatusChip';
@@ -45,7 +46,7 @@ const FILTERS = [
 
 type FilterKey = (typeof FILTERS)[number]['key'];
 
-export function Posts({ orgId }: { orgId: string }) {
+export function Posts({ orgId, campaigns }: { orgId: string; campaigns: Campaign[] }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +97,7 @@ export function Posts({ orgId }: { orgId: string }) {
         description="Everything drafted, scheduled, and published for this workspace."
         action={
           <>
+            <BulkImport orgId={orgId} campaigns={campaigns} onDone={() => void load()} />
             <Button variant="outline" size="icon" aria-label="Refresh" onClick={() => void load()}>
               <RefreshCw className="size-4" />
             </Button>

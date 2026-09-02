@@ -25,5 +25,8 @@ verify_jwt = false
 [functions.run-nudges]
 verify_jwt = false
 
+[functions.og-fetch]
+verify_jwt = false
+
 [functions.review]
 verify_jwt = false

@@ -60,7 +60,7 @@ function AuthedApp({ user }: { user: User }) {
           path="calendar"
           element={<Calendar key={orgId} orgId={orgId} campaigns={ws.campaigns} />}
         />
-        <Route path="posts" element={<Posts key={orgId} orgId={orgId} />} />
+        <Route path="posts" element={<Posts key={orgId} orgId={orgId} campaigns={ws.campaigns} />} />
         <Route path="approvals" element={<Approvals key={orgId} orgId={orgId} />} />
         <Route path="requests" element={<Requests key={orgId} orgId={orgId} />} />
         <Route path="analytics" element={<Analytics key={orgId} orgId={orgId} />} />
