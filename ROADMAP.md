@@ -118,9 +118,13 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
      `orgs.notify_email` (Settings → Notification email)
    - operator hits "Send for review" → emails the campaign's `approver_email`
      the stable portal link (`notify-candidate` edge fn)
-   - `RESEND_API_KEY` is set. **Still needed:** verify `positiveforce.win` in
-     Resend + set `EMAIL_FROM` — until then Resend only delivers to
-     `ezra@positiveforce.win` (the account address).
+   - `RESEND_API_KEY` is set; `positiveforce.win` added to Resend (domain id
+     `641c4750-7c7c-49dc-8e58-641a5160ba96`), DNS at **Njalla** — partner adding
+     the 3 records (DKIM `resend._domainkey` TXT, `send` TXT SPF, `send` MX)
+     ~2026-09-02. **Then:** `POST /domains/<id>/verify`, set
+     `EMAIL_FROM="Triple Jeopardy <notifications@positiveforce.win>"`, redeploy
+     `review` + `notify-candidate`. Until then Resend only delivers to
+     `ezra@positiveforce.win`.
 3. **Bluesky metrics sync** — worker/edge step that pulls likes/reposts/replies
    into `post_targets` (add `metrics jsonb` + `metrics_synced_at`), so the
    Analytics page shows real reach. Meta metrics slot into the same shape later.
