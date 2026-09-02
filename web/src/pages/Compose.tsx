@@ -32,6 +32,7 @@ interface ExistingMedia {
   id: string;
   path: string;
   url: string;
+  alt: string;
 }
 
 type Mode = 'draft' | 'schedule' | 'now';
@@ -61,6 +62,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const [selected, setSelected] = useState<NetworkId[]>(ALL_IDS);
   const [firstComment, setFirstComment] = useState('');
   const [internalNote, setInternalNote] = useState('');
+  const [alts, setAlts] = useState<Record<string, string>>({});
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [overridesOpen, setOverridesOpen] = useState(false);
   const [useDisclaimer, setUseDisclaimer] = useState(true);
@@ -131,7 +133,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   const loadExistingMedia = useCallback(async (postId: string) => {
     const { data: rows } = await supabase
       .from('post_media')
-      .select('id, storage_path')
+      .select('id, storage_path, alt_text')
       .eq('post_id', postId)
       .order('sort');
     const paths = (rows ?? []).map((r) => r.storage_path as string);
@@ -141,13 +143,18 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
     }
     const { data: signed } = await supabase.storage.from('media').createSignedUrls(paths, 3600);
     const urlByPath = new Map((signed ?? []).map((s) => [s.path ?? '', s.signedUrl]));
-    setExisting(
-      (rows ?? []).map((r) => ({
-        id: r.id as string,
-        path: r.storage_path as string,
-        url: urlByPath.get(r.storage_path as string) ?? '',
-      })),
-    );
+    const list = (rows ?? []).map((r) => ({
+      id: r.id as string,
+      path: r.storage_path as string,
+      url: urlByPath.get(r.storage_path as string) ?? '',
+      alt: (r.alt_text as string) ?? '',
+    }));
+    setExisting(list);
+    setAlts((a) => {
+      const next = { ...a };
+      for (const m of list) if (next[`e:${m.id}`] === undefined) next[`e:${m.id}`] = m.alt;
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -234,9 +241,11 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
   }
 
   const mediaItems: MediaItem[] = [
-    ...existing.map((e) => ({ key: `e:${e.id}`, url: e.url, removing: busy })),
-    ...files.map((f, i) => ({ key: `f:${i}`, url: previews[i] ?? '', name: f.name })),
+    ...existing.map((e) => ({ key: `e:${e.id}`, url: e.url, alt: alts[`e:${e.id}`] ?? '', removing: busy })),
+    ...files.map((f, i) => ({ key: `f:${i}`, url: previews[i] ?? '', name: f.name, alt: alts[`f:${i}`] ?? '' })),
   ];
+
+  const setAlt = (key: string, alt: string) => setAlts((a) => ({ ...a, [key]: alt }));
 
   async function save(mode: Mode) {
     setError(null);
@@ -301,8 +310,13 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
         if (upErr) throw upErr;
         const { error: mErr } = await supabase
           .from('post_media')
-          .insert({ post_id: postId, storage_path: path, sort: base + i, alt_text: '' });
+          .insert({ post_id: postId, storage_path: path, sort: base + i, alt_text: alts[`f:${i}`]?.trim() ?? '' });
         if (mErr) throw mErr;
+      }
+
+      for (const m of existing) {
+        const a = (alts[`e:${m.id}`] ?? '').trim();
+        if (a !== m.alt) await supabase.from('post_media').update({ alt_text: a }).eq('id', m.id);
       }
 
       if (mode === 'draft') {
@@ -487,6 +501,7 @@ export function Compose({ orgId, campaigns }: { orgId: string; campaigns: Campai
               items={mediaItems}
               max={MAX_IMAGES}
               onAdd={addFiles}
+              onAltChange={setAlt}
               onRemove={removeMedia}
             />
           </div>
