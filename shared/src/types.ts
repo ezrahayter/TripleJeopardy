@@ -40,6 +40,7 @@ export interface Org {
   id: string;
   name: string;
   notify_email: string | null;
+  digest_enabled: boolean;
   created_at: string;
 }
 

@@ -37,5 +37,8 @@ verify_jwt = false
 [functions.report]
 verify_jwt = false
 
+[functions.run-digests]
+verify_jwt = false
+
 [functions.review]
 verify_jwt = false

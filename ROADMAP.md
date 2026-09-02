@@ -182,11 +182,12 @@ Phases are P1 (next) → P4 (someday). `*ours*` = campaign-native, no competitor
   and tags each send-for-review
 - ✅ **Shareable report** — `report` edge fn + public `/report/<token>` page
   (migration 0027); live metrics + on-demand AI recap, managed in Settings
+- ✅ **Weekly digest email** — `run-digests` edge fn (migration 0028), worker
+  pings it Monday 13:00 UTC; per-org opt-out in Settings
 
 **Remaining:**
 - **Approval:** inline comments on the caption/image (Planable-style).
 - **Compose/schedule:** recurring posts, thread/carousel composer.
-- **Analytics:** scheduled report emails.
 - **Content sourcing:** RSS → drafts, evergreen recycling.
 - **Media:** media library, per-network aspect-ratio crop (Kibo `image-crop`
   vendored, unused), video passthrough.

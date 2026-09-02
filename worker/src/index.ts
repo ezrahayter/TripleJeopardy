@@ -47,7 +47,27 @@ async function tick(env: Env) {
       });
   }
 
-  return { publish, refresh, metrics, nudges };
+  // weekly performance digest — Monday 13:00 UTC; the edge fn guards per-day
+  let digests: unknown = null;
+  const nowUtc = new Date();
+  if (
+    env.WORKER_TRIGGER_SECRET &&
+    nowUtc.getUTCDay() === 1 &&
+    nowUtc.getUTCHours() === 13 &&
+    minute === 0
+  ) {
+    digests = await fetch(`${env.SUPABASE_URL}/functions/v1/run-digests`, {
+      method: 'POST',
+      headers: { 'x-trigger-secret': env.WORKER_TRIGGER_SECRET },
+    })
+      .then((r) => r.json())
+      .catch((e) => {
+        console.error('digest run error', String(e?.message ?? e));
+        return null;
+      });
+  }
+
+  return { publish, refresh, metrics, nudges, digests };
 }
 
 export default {

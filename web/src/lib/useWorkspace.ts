@@ -33,7 +33,10 @@ interface WorkspaceState {
   selectWorkspace: (id: string) => void;
   createWorkspace: (name: string, firstCampaign: string) => Promise<void>;
   renameWorkspace: (id: string, name: string) => Promise<void>;
-  updateWorkspace: (id: string, patch: { notify_email?: string | null }) => Promise<void>;
+  updateWorkspace: (
+    id: string,
+    patch: { notify_email?: string | null; digest_enabled?: boolean },
+  ) => Promise<void>;
   setCampaignPaused: (id: string, paused: boolean) => Promise<void>;
   setCampaignSlots: (id: string, slots: PostingSlot[]) => Promise<void>;
   deleteWorkspace: (id: string) => Promise<void>;
@@ -142,8 +145,9 @@ export function useWorkspace(userId: string | undefined): WorkspaceState {
 
   const updateWorkspace = useCallback<WorkspaceState['updateWorkspace']>(
     async (id, patch) => {
-      const clean: { notify_email?: string | null } = {};
+      const clean: { notify_email?: string | null; digest_enabled?: boolean } = {};
       if ('notify_email' in patch) clean.notify_email = patch.notify_email?.trim() || null;
+      if ('digest_enabled' in patch) clean.digest_enabled = patch.digest_enabled;
       const { error } = await supabase.from('orgs').update(clean).eq('id', id);
       if (error) throw error;
       await loadOrgs();

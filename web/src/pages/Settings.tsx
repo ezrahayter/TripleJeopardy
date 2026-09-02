@@ -20,7 +20,10 @@ interface Props {
   campaigns: Campaign[];
   currentUserId: string;
   onRename: (id: string, name: string) => Promise<void>;
-  onUpdateOrg: (id: string, patch: { notify_email?: string | null }) => Promise<void>;
+  onUpdateOrg: (
+    id: string,
+    patch: { notify_email?: string | null; digest_enabled?: boolean },
+  ) => Promise<void>;
   onPauseCampaign: (id: string, paused: boolean) => Promise<void>;
   onUpdateSlots: (id: string, slots: PostingSlot[]) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -147,6 +150,20 @@ export function Settings({
             Save
           </Button>
         </div>
+        <label className="flex cursor-pointer items-center gap-2 pt-2 text-sm">
+          <input
+            type="checkbox"
+            checked={org.digest_enabled !== false}
+            onChange={(e) =>
+              void guard(
+                () => onUpdateOrg(org.id, { digest_enabled: e.target.checked }),
+                'Saved',
+              )
+            }
+            className="accent-[color:var(--pf-coral)]"
+          />
+          Send a weekly performance digest to this address
+        </label>
       </form>
 
       <Separator className="my-8" />
